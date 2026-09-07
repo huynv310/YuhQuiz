@@ -928,7 +928,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                   {Object.keys(selectedExam.answer_keys?.part_2 || {}).length > 0 && (
                     <div className="bg-[#FAFAFA] p-4 rounded-2xl border border-gray-200">
                       <h4 className="font-bold text-sm text-gray-900 mb-3">PHẦN II: Trắc nghiệm Đúng / Sai</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 gap-4">
                         {Object.keys(selectedExam.answer_keys.part_2).map((qStr) => {
                           const qIdx = Number(qStr);
                           const studentGroup = (inspectSubmission.answers as any)?.part_2?.[qIdx] || {};

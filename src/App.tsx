@@ -314,6 +314,32 @@ export function App() {
             </button>
           </div>
 
+          {/* TRÊN DESKTOP: VẪN HIỆN SẴN NÚT VÀO QUẢN TRỊ / GÓC HỌC TẬP TRỰC TIẾP */}
+          {currentUser && (
+            <div className="hidden md:flex items-center space-x-2">
+              {userProfile?.role === 'teacher' ? (
+                <button
+                  type="button"
+                  onClick={() => setMode('teacher')}
+                  className="flex items-center space-x-1.5 bg-[#1DB954] hover:bg-[#169C46] text-white px-4 py-2 rounded-2xl font-extrabold text-xs shadow-md shadow-emerald-500/25 transition-all active:scale-95 whitespace-nowrap cursor-pointer"
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>VÀO QUẢN TRỊ</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setMode('student_portal')}
+                  className="flex items-center space-x-1.5 bg-[#1DB954] hover:bg-[#169C46] text-white px-4 py-2 rounded-2xl font-extrabold text-xs shadow-md shadow-emerald-500/25 transition-all active:scale-95 whitespace-nowrap cursor-pointer"
+                >
+                  <GraduationCap className="w-4 h-4" />
+                  <span>VÀO GÓC HỌC TẬP</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          )}
           {/* NÚT MENU BAR DẠNG NÚT = / ☰ (HIỆN DIỆN 100% TRÊN MỌI MÀN HÌNH) */}
           <div className="relative">
             {currentUser ? (
@@ -352,7 +378,12 @@ export function App() {
 
             {/* DROPDOWN MENU THẢ XUỐNG CHUẨN XÁC KHI CLICK (HIỂN THỊ TRÊN CẢ PC VÀ MOBILE) */}
             {isMobileMenuOpen && (
-              <div className="absolute top-14 right-0 w-72 sm:w-80 bg-white/98 backdrop-blur-md border border-gray-200 rounded-3xl shadow-2xl p-4 z-50 animate-in fade-in space-y-3">
+              <>
+                <div 
+                  className="fixed inset-0 z-40 bg-black/15"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                />
+                <div className="absolute top-14 right-0 w-72 sm:w-80 bg-white border border-gray-200 rounded-3xl shadow-2xl p-4 z-50 space-y-3">
                 {currentUser ? (
                   <div className="space-y-3">
                     <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-2xl border border-gray-200">
@@ -467,7 +498,8 @@ export function App() {
                   </div>
                 )}
               </div>
-            )}
+            </>
+          )}
           </div>
 
         </div>

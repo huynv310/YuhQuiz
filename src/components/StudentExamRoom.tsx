@@ -983,11 +983,11 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4">
                   {Array.from({ length: p2Count }, (_, i) => i + 1).map((qIdx) => (
-                    <div key={qIdx} className="bg-[#FAFAFA] p-3.5 md:p-4 rounded-2xl border border-gray-200/80 shadow-xs flex flex-col justify-between">
+                    <div key={qIdx} className="bg-[#FAFAFA] p-3.5 md:p-5 rounded-3xl border border-gray-200/80 shadow-xs flex flex-col justify-between overflow-hidden">
                       <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-200/60">
-                        <span className="font-extrabold text-xs md:text-sm text-gray-900">Câu {qIdx}</span>
+                        <span className="font-extrabold text-sm md:text-base text-gray-900">Câu {qIdx}</span>
                         {isSubmitted ? (
                           <span className="text-xs font-bold text-[#1DB954]">
                             +{result?.score_details?.part_2?.[qIdx]?.score || 0}đ ({result?.score_details?.part_2?.[qIdx]?.correct_count || 0}/4 ý đúng)
@@ -1006,38 +1006,38 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
                           return (
                             <div 
                               key={sub} 
-                              className="flex items-center justify-between py-2 px-3 rounded-xl bg-white border border-gray-200/70 hover:border-gray-300 transition-all shadow-xs"
+                              className="flex items-center justify-between gap-2 py-2.5 px-3.5 rounded-2xl bg-white border border-gray-200/70 hover:border-gray-300 transition-all shadow-xs overflow-hidden"
                             >
-                              <div className="flex items-center space-x-2">
-                                <span className="font-bold text-xs text-gray-800">Ý {sub})</span>
+                              <div className="flex items-center space-x-2 flex-wrap gap-y-1 min-w-0">
+                                <span className="font-extrabold text-xs sm:text-sm text-gray-800 whitespace-nowrap flex-shrink-0">Ý {sub})</span>
                                 {isSubmitted && (
                                   isCorrect ? (
-                                    <span className="inline-flex items-center text-[#1DB954] text-[11px] font-bold">
-                                      <CheckCircle2 className="w-3.5 h-3.5 mr-0.5" /> Đúng
+                                    <span className="inline-flex items-center text-[#1DB954] text-xs font-bold whitespace-nowrap flex-shrink-0">
+                                      <CheckCircle2 className="w-4 h-4 mr-1 flex-shrink-0" /> Đúng
                                     </span>
                                   ) : (
-                                    <span className="inline-flex items-center text-rose-500 text-[11px] font-bold">
-                                      <XCircle className="w-3.5 h-3.5 mr-0.5" /> Sai
+                                    <span className="inline-flex items-center text-rose-500 text-xs font-bold whitespace-nowrap flex-shrink-0">
+                                      <XCircle className="w-4 h-4 mr-1 flex-shrink-0" /> Sai
                                     </span>
                                   )
                                 )}
-                              </div>
 
-                              <div className="flex items-center space-x-2">
                                 {isSubmitted && (
-                                  <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-[#15803D] border border-emerald-200">
+                                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-lg bg-emerald-50 text-[#15803D] border border-emerald-200 whitespace-nowrap flex-shrink-0">
                                     ĐS: {correctVal === true ? 'Đúng' : correctVal === false ? 'Sai' : '--'}
                                   </span>
                                 )}
+                              </div>
 
+                              <div className="flex-shrink-0 ml-auto">
                                 <div className="inline-flex rounded-2xl p-1 bg-gray-100 border border-gray-200/80 space-x-1.5 shadow-2xs">
                                   <button
                                     disabled={isSubmitted}
                                     onClick={() => updateAnswer('part_2', qIdx, true, sub)}
-                                    className={`min-w-[65px] md:min-w-[75px] h-9 md:h-10 text-xs md:text-sm font-black rounded-xl transition-all active:scale-95 flex items-center justify-center space-x-1 ${
+                                    className={`min-w-[55px] sm:min-w-[65px] h-8 sm:h-9 text-xs sm:text-sm font-bold rounded-xl transition-all active:scale-95 flex items-center justify-center space-x-1 whitespace-nowrap flex-shrink-0 ${
                                       val === true 
                                         ? (isSubmitted && !isCorrect ? 'bg-rose-500 text-white' : 'bg-[#1DB954] text-white shadow-md ring-2 ring-emerald-300')
-                                        : (isSubmitted && correctVal === true ? 'border-2 border-[#1DB954] text-[#1DB954] bg-emerald-50 font-bold' : 'text-gray-600 hover:text-black hover:bg-white/80 font-bold')
+                                        : (isSubmitted && correctVal === true ? 'border-2 border-[#1DB954] text-[#1DB954] bg-emerald-50 font-bold' : 'text-gray-600 hover:text-black hover:bg-white/80')
                                     }`}
                                   >
                                     <span>Đúng</span>
@@ -1045,10 +1045,10 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
                                   <button
                                     disabled={isSubmitted}
                                     onClick={() => updateAnswer('part_2', qIdx, false, sub)}
-                                    className={`min-w-[65px] md:min-w-[75px] h-9 md:h-10 text-xs md:text-sm font-black rounded-xl transition-all active:scale-95 flex items-center justify-center space-x-1 ${
+                                    className={`min-w-[55px] sm:min-w-[65px] h-8 sm:h-9 text-xs sm:text-sm font-bold rounded-xl transition-all active:scale-95 flex items-center justify-center space-x-1 whitespace-nowrap flex-shrink-0 ${
                                       val === false 
-                                        ? (isSubmitted && !isCorrect ? 'bg-rose-500 text-white' : 'bg-rose-500 text-white shadow-md ring-2 ring-rose-300')
-                                        : (isSubmitted && correctVal === false ? 'border-2 border-rose-500 text-rose-600 bg-rose-50 font-bold' : 'text-gray-600 hover:text-black hover:bg-white/80 font-bold')
+                                        ? (isSubmitted && !isCorrect ? 'bg-rose-500 text-white' : 'bg-[#1DB954] text-white shadow-md ring-2 ring-emerald-300')
+                                        : (isSubmitted && correctVal === false ? 'border-2 border-rose-500 text-rose-600 bg-rose-50 font-bold' : 'text-gray-600 hover:text-black hover:bg-white/80')
                                     }`}
                                   >
                                     <span>Sai</span>

@@ -2,11 +2,6 @@
 > **Nền tảng khảo thí trực tuyến nhanh gọn và tiện ích dành cho học sinh THPT**  
 > Cung cấp giải pháp tổ chức thi và thi thử toàn diện, đáp ứng linh hoạt nhu cầu đánh giá năng lực theo quy chế mới của Bộ GD&ĐT.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com)
-[![Supabase](https://img.shields.io/badge/Backend-Supabase-emerald)](https://supabase.com)
-[![React](https://img.shields.io/badge/Frontend-React%20%2B%20Vite-blue)](https://vitejs.dev)
-[![TailwindCSS](https://img.shields.io/badge/Style-Spotify%20Light-1DB954)](https://tailwindcss.com)
-
 ---
 
 ## 🌟 Giới Thiệu & Điểm Nổi Bật
@@ -21,8 +16,8 @@
 * **Bộ điều khiển cỡ chữ trang web an toàn (85% – 120%):** Tích hợp nút `A-` `100%` `A+` trên thanh điều hướng, tự động căn chỉnh tỷ lệ mà không phá vỡ khung lưới (grid layout).
 * **Đột phá Mobile UX (Quick Answer Dock & Question Matrix):**
   * Đề thi PDF hiển thị trọn vẹn **100% màn hình điện thoại**, không bị che khuất.
-  * Thanh khoanh đáp án nhanh ở sát đáy màn hình ($52\text{px}$): Phím A, B, C, D bản to chạm bằng ngón cái, **tự động chuyển câu tiếp theo** ngay sau khi chọn.
-  * **Phần II Đúng/Sai cảm ứng bản to:** Hai nút bấm `[ ĐÚNG ]` / `[ SAI ]` chuẩn $40\text{px}$ kèm thanh trạng thái 4 ý `A, B, C, D` chống bấm nhầm triệt để.
+  * Thanh khoanh đáp án nhanh ở sát đáy màn hình (52px): Phím A, B, C, D bản to chạm bằng ngón cái, **tự động chuyển câu tiếp theo** ngay sau khi chọn.
+  * **Phần II Đúng/Sai cảm ứng bản to:** Hai nút bấm `[ ĐÚNG ]` / `[ SAI ]` chuẩn 40px kèm thanh trạng thái 4 ý `A, B, C, D` chống bấm nhầm triệt để.
   * **Ma trận câu hỏi 1-chạm (`[ ▦ ]`):** Hiển thị toàn bộ tiến độ bài thi (câu đã làm / câu bỏ sót), chạm 1 chạm để chuyển ngay đến câu cần làm.
 * **Hệ thống giám sát chống gian lận thông minh (Anti-Cheat):** Phát hiện chuyển tab, mở thanh bên chia màn hình AI, chặn phím tắt F12, Copy/Paste. **Tự động tắt bỏ 100% cảm biến giám sát ngay khi học sinh nộp bài** để học sinh tự do đối chiếu kết quả.
 * **Lưu bài 2 tầng an toàn (Two-tier Storage):** Lưu tức thời vào `localStorage` (0ms) kết hợp đồng bộ ngầm định kỳ (60s) lên Supabase, giúp hệ thống chịu tải an toàn hàng nghìn học sinh cùng thi mà không nghẽn máy chủ. Tự động thu bài khi hết giờ hoặc khi thí sinh rời phòng.
@@ -54,7 +49,53 @@
 
 ## 🏗️ Kiến Trúc Hệ Thống & Cấu Trúc Dự Án
 
-exam-platform/├── public/│   ├── icon.svg                      # Icon thương hiệu│   └── manifest.json                 # Cấu hình PWA Web App├── src/│   ├── components/│   │   ├── AuthModal.tsx             # Đăng nhập / Đăng ký hợp nhất│   │   ├── ClassroomModal.tsx        # Quản lý lớp, thành viên, điểm số & Giải tán lớp│   │   ├── CompleteProfileModal.tsx  # Cập nhật thông tin khi đăng nhập Google│   │   ├── CreateExamModal.tsx       # Tạo đề thi, upload PDF, tùy biến thang điểm│   │   ├── ExamCardSelector.tsx      # Danh sách thẻ chọn đề thi trực quan có nhãn Lớp/Public│   │   ├── ItemAnalysisTable.tsx     # Phân tích độ khó câu hỏi (Chỉ số Pi, câu bẫy)│   │   ├── JoinClassModal.tsx        # Học sinh nhập mã tham gia lớp│   │   ├── LeaderboardModal.tsx      # Bảng xếp hạng Top 20% vinh danh│   │   ├── ScoreDistributionChart.tsx# Biểu đồ phổ điểm phân phối chuẩn hình chuông│   │   ├── StudentExamRoom.tsx       # Phòng thi học sinh (Split view, Zoom PDF, Quick Dock)│   │   ├── StudentPortal.tsx         # Góc học tập thí sinh (Lọc tab theo lớp, điểm TB lớp)│   │   └── TeacherDashboard.tsx      # Bảng điều khiển khảo thí giáo viên (Chấm lại, Thu bài)│   ├── constants/│   │   └── subjectPresets.ts         # Cấu hình số câu, điểm và thời gian chuẩn Bộ GD&ĐT│   ├── hooks/│   │   ├── useAntiCheat.ts           # Cảm biến chống gian lận (Tự tắt 100% khi nộp bài)│   │   ├── useAutoSave.ts            # Lưu bài 2 tầng: LocalStorage 0ms & Sync Server 60s│   │   └── useExamTimer.ts           # Đếm ngược neo mốc thời gian thực chống tua giờ│   ├── lib/│   │   └── supabase.ts               # Kết nối cơ sở dữ liệu Supabase BaaS│   ├── types/│   │   └── exam.ts                   # Định nghĩa TypeScript Interfaces toàn dự án│   ├── utils/│   │   ├── answerParser.ts           # Thuật toán tách đáp án dán hàng loạt│   │   ├── excelExporter.ts          # Xuất báo cáo bảng điểm Excel tự co giãn cột│   │   ├── qrGenerator.ts            # Bộ sinh mã QR thuần chuẩn vector SVG│   │   └── scoring.ts                # Công thức chấm điểm Đúng/Sai lũy tiến THPTQG 2025│   ├── App.tsx                       # Điều hướng chính, Menu 3 gạch di động & Hero Section│   ├── index.css                     # Tailwind CSS & Bộ định kiểu toàn cục│   └── main.tsx                      # Điểm khởi chạy React kèm GlobalErrorBoundary chống crash├── supabase/│   └── schema.sql                    # Schema PostgreSQL: Bảng, RLS, Storage, Trigger & Stored Procedure├── tests/│   ├── test_answer_parser.js         # Kiểm thử thuật toán trích xuất đáp án│   ├── test_dynamic_scoring.js       # Kiểm thử thuật toán tính điểm linh hoạt theo cấu hình│   └── test_scoring.js               # Kiểm thử độ chính xác barem điểm chuẩn THPTQG├── package.json & vite.config.ts└── tailwind.config.js
+```
+exam-platform/
+├── public/
+│   ├── icon.svg                      # Icon thương hiệu
+│   └── manifest.json                 # Cấu hình PWA Web App
+├── src/
+│   ├── components/
+│   │   ├── AuthModal.tsx             # Đăng nhập / Đăng ký hợp nhất
+│   │   ├── ClassroomModal.tsx        # Quản lý lớp, thành viên, điểm số & Giải tán lớp
+│   │   ├── CompleteProfileModal.tsx  # Cập nhật thông tin khi đăng nhập Google
+│   │   ├── CreateExamModal.tsx       # Tạo đề thi, upload PDF, tùy biến thang điểm
+│   │   ├── ExamCardSelector.tsx      # Danh sách thẻ chọn đề thi trực quan có nhãn Lớp/Public
+│   │   ├── ItemAnalysisTable.tsx     # Phân tích độ khó câu hỏi (Chỉ số Pi, câu bẫy)
+│   │   ├── JoinClassModal.tsx        # Học sinh nhập mã tham gia lớp
+│   │   ├── LeaderboardModal.tsx      # Bảng xếp hạng Top 20% vinh danh
+│   │   ├── ScoreDistributionChart.tsx# Biểu đồ phổ điểm phân phối chuẩn hình chuông
+│   │   ├── StudentExamRoom.tsx       # Phòng thi học sinh (Split view, Zoom PDF, Quick Dock)
+│   │   ├── StudentPortal.tsx         # Góc học tập thí sinh (Lọc tab theo lớp, điểm TB lớp)
+│   │   └── TeacherDashboard.tsx      # Bảng điều khiển khảo thí giáo viên (Chấm lại, Thu bài)
+│   ├── constants/
+│   │   └── subjectPresets.ts         # Cấu hình số câu, điểm và thời gian chuẩn Bộ GD&ĐT
+│   ├── hooks/
+│   │   ├── useAntiCheat.ts           # Cảm biến chống gian lận (Tự tắt 100% khi nộp bài)
+│   │   ├── useAutoSave.ts            # Lưu bài 2 tầng: LocalStorage 0ms & Sync Server 60s
+│   │   └── useExamTimer.ts           # Đếm ngược neo mốc thời gian thực chống tua giờ
+│   ├── lib/
+│   │   └── supabase.ts               # Kết nối cơ sở dữ liệu Supabase BaaS
+│   ├── types/
+│   │   └── exam.ts                   # Định nghĩa TypeScript Interfaces toàn dự án
+│   ├── utils/
+│   │   ├── answerParser.ts           # Thuật toán tách đáp án dán hàng loạt
+│   │   ├── excelExporter.ts          # Xuất báo cáo bảng điểm Excel tự co giãn cột
+│   │   ├── qrGenerator.ts            # Bộ sinh mã QR thuần chuẩn vector SVG
+│   │   └── scoring.ts                # Công thức chấm điểm Đúng/Sai lũy tiến THPTQG 2025
+│   ├── App.tsx                       # Điều hướng chính, Menu 3 gạch di động & Hero Section
+│   ├── index.css                     # Tailwind CSS & Bộ định kiểu toàn cục
+│   └── main.tsx                      # Điểm khởi chạy React kèm GlobalErrorBoundary chống crash
+├── supabase/
+│   └── schema.sql                    # Schema PostgreSQL: Bảng, RLS, Storage, Trigger & Stored Procedure
+├── tests/
+│   ├── test_answer_parser.js         # Kiểm thử thuật toán trích xuất đáp án
+│   ├── test_dynamic_scoring.js       # Kiểm thử thuật toán tính điểm linh hoạt theo cấu hình
+│   └── test_scoring.js               # Kiểm thử độ chính xác barem điểm chuẩn THPTQG
+├── package.json & vite.config.ts
+└── tailwind.config.js
+```
+
 ---
 
 ## 🧮 Barem Điểm Cấu Trúc Mới THPTQG 2025
@@ -81,14 +122,60 @@ Thuật toán trong `scoring.ts` và Stored Procedure `submit_and_grade_exam` ch
 ```bash
 cd exam-platform
 npm install
-2. Chạy bộ kiểm thử tự động (Unit Tests)Bashnode tests/test_dynamic_scoring.js
+```
+
+### 2. Chạy bộ kiểm thử tự động (Unit Tests)
+```bash
+node tests/test_dynamic_scoring.js
 node tests/test_scoring.js
 node tests/test_answer_parser.js
 # Kết quả: Tất cả các kịch bản kiểm thử đạt 100% độ chính xác
-3. Cấu hình biến môi trườngTạo tệp .env tại thư mục gốc exam-platform:Đoạn mãVITE_SUPABASE_URL=[https://your-project.supabase.co](https://your-project.supabase.co)
+```
+
+### 3. Cấu hình biến môi trường
+Tạo tệp `.env` tại thư mục gốc `exam-platform`:
+```env
+VITE_SUPABASE_URL=[https://your-project.supabase.co](https://your-project.supabase.co)
 VITE_SUPABASE_ANON_KEY=your-anon-key
-4. Khởi chạy máy chủ phát triểnBashnpm run dev
-Truy cập: http://localhost:5173🌐 Triển Khai Miễn Phí Lên Cloud (Supabase + Vercel)Bước A: Thiết lập Cơ sở dữ liệu SupabaseĐăng ký tài khoản tại https://supabase.com và tạo một Project mới (khuyến nghị chọn Region Singapore).Vào SQL Editor $\to$ New query $\to$ Dán toàn bộ nội dung tệp supabase/schema.sql $\to$ Bấm Run.Vào Storage $\to$ Tạo bucket mới tên exam-pdfs và bật Public bucket.Vào Authentication $\to$ URL Configuration:Site URL: Điền tên miền của bạn (ví dụ: https://www.yuhquiz.id.vn).Redirect URLs: Thêm https://www.yuhquiz.id.vn/** và http://localhost:5173/**.(Khuyên dùng) Vào Authentication $\to$ Providers $\to$ Email $\to$ Tắt Confirm email để học sinh tạo tài khoản vào thi được ngay mà không phải chờ thư kích hoạt.Bước B: Triển khai Frontend lên VercelĐẩy mã nguồn lên GitHub của bạn:Bashgit add .
-git commit -m "Deploy YuhQuiz Production"
-git push origin main
-Đăng nhập https://vercel.com $\to$ Add New... $\to$ Project $\to$ Chọn Repo GitHub YuhQuiz.Trong mục Environment Variables, cấu hình 2 biến:VITE_SUPABASE_URL: (Lấy từ Project Settings trên Supabase)VITE_SUPABASE_ANON_KEY: (Lấy từ Project Settings trên Supabase)Bấm Deploy.Trong phần cài đặt Deployment Protection trên Vercel: Chuyển sang Disabled để mở công khai cho mọi học sinh truy cập.Kết nối tên miền tùy chỉnh (Custom Domain):Thêm tên miền www.yuhquiz.id.vn (CNAME trỏ về cname.vercel-dns.com).Thêm tên miền yuhquiz.id.vn (A Record trỏ về 76.76.21.21).🛡️ Bản Quyền & Giấy PhépDự án được phát triển phục vụ mục đích giáo dục và khảo thí trực tuyến cho học sinh THPT trên toàn quốc.
+```
+
+### 4. Khởi chạy máy chủ phát triển
+```bash
+npm run dev
+```
+Truy cập: `http://localhost:5173`
+
+---
+
+## 🌐 Triển Khai Miễn Phí Lên Cloud (Supabase + Vercel)
+
+### Bước A: Thiết lập Cơ sở dữ liệu Supabase
+1. Đăng ký tài khoản tại [https://supabase.com](https://supabase.com) và tạo một Project mới (khuyến nghị chọn Region Singapore).
+2. Vào **SQL Editor** $\to$ **New query** $\to$ Dán toàn bộ nội dung tệp `supabase/schema.sql` $\to$ Bấm **Run**.
+3. Vào **Storage** $\to$ Tạo bucket mới tên `exam-pdfs` và bật **Public bucket**.
+4. Vào **Authentication** $\to$ **URL Configuration**:
+   * **Site URL:** Điền tên miền của bạn (ví dụ: `https://www.yuhquiz.id.vn`).
+   * **Redirect URLs:** Thêm `https://www.yuhquiz.id.vn/**` và `http://localhost:5173/**`.
+5. *(Khuyên dùng)* Vào **Authentication** $\to$ **Providers** $\to$ **Email** $\to$ Tắt **Confirm email** để học sinh tạo tài khoản vào thi được ngay mà không phải chờ thư kích hoạt.
+
+### Bước B: Triển khai Frontend lên Vercel
+1. Đẩy mã nguồn lên GitHub của bạn:
+   ```bash
+   git add .
+   git commit -m "Deploy YuhQuiz Production"
+   git push origin main
+   ```
+2. Đăng nhập [https://vercel.com](https://vercel.com) $\to$ **Add New...** $\to$ **Project** $\to$ Chọn Repo GitHub `YuhQuiz`.
+3. Trong mục **Environment Variables**, cấu hình 2 biến:
+   * `VITE_SUPABASE_URL`: (Lấy từ Project Settings trên Supabase)
+   * `VITE_SUPABASE_ANON_KEY`: (Lấy từ Project Settings trên Supabase)
+4. Bấm **Deploy**.
+5. Trong phần cài đặt **Deployment Protection** trên Vercel: Chuyển sang **Disabled** để mở công khai cho mọi học sinh truy cập.
+6. Kết nối tên miền tùy chỉnh (Custom Domain):
+   * Thêm tên miền `www.yuhquiz.id.vn` (CNAME trỏ về `cname.vercel-dns.com`).
+   * Thêm tên miền `yuhquiz.id.vn` (A Record trỏ về `76.76.21.21`).
+
+---
+
+## 🛡️ Bản Quyền & Giấy Phép
+Dự án được phát triển phục vụ mục đích giáo dục và khảo thí trực tuyến cho học sinh THPT trên toàn quốc.

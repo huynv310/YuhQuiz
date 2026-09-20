@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
+import React, { useRef } from 'react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -15,25 +15,6 @@ interface LandingPageProps {
   currentUser?: any;
   userProfile?: any;
   onEnterDashboard?: () => void;
-}
-
-// Cảnh 3D nạp trễ: chỉ trên máy tính, không bật giảm chuyển động / tiết kiệm dữ liệu
-const LandingScene = lazy(() => import('./LandingScene'));
-
-function useShow3D(): boolean {
-  const [show, setShow] = useState(false);
-  useEffect(() => {
-    const nav: any = navigator;
-    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    const saveData = nav.connection?.saveData;
-    const wide = window.innerWidth >= 1024;
-    if (reduce || saveData || !wide) return;
-    const w: any = window;
-    const start = () => setShow(true);
-    const id = w.requestIdleCallback ? w.requestIdleCallback(start, { timeout: 2500 }) : setTimeout(start, 1500);
-    return () => (w.cancelIdleCallback ? w.cancelIdleCallback(id) : clearTimeout(id));
-  }, []);
-  return show;
 }
 
 const FORMATS = [
@@ -57,8 +38,6 @@ export default function LandingPage({
   onEnterDashboard,
 }: LandingPageProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [slow3D, setSlow3D] = useState(false);
-  const show3D = useShow3D() && !slow3D;
 
   useGSAP(() => {
     const mm = gsap.matchMedia();
@@ -70,7 +49,23 @@ export default function LandingPage({
         .from('.lp-line > span', { yPercent: 110, duration: 0.9, stagger: 0.12 }, '-=0.3')
         .from('.lp-desc', { opacity: 0, y: 20, duration: 0.7 }, '-=0.5')
         .from('.lp-ctas > *', { opacity: 0, y: 16, stagger: 0.1, duration: 0.6 }, '-=0.4')
-        .from('.lp-hero-3d', { opacity: 0, scale: 0.92, duration: 1.2 }, 0.2);
+        .from('.lp-hero-art', { opacity: 0, scale: 0.9, duration: 1, ease: 'back.out(1.4)' }, 0.3);
+
+      // Biểu tượng A+ và 10: nổi nhẹ, thỉnh thoảng rung như chuông báo
+      const bob = (sel: string, dy: number, dur: number) =>
+        gsap.to(sel, { y: dy, duration: dur, ease: 'sine.inOut', yoyo: true, repeat: -1 });
+      bob('.lp-icon-a', -14, 2.6);
+      bob('.lp-icon-10', 12, 3.1);
+      const ring = (sel: string, base: number, delay: number) =>
+        gsap.timeline({ repeat: -1, repeatDelay: 2.2, delay })
+          .to(sel, { rotation: base + 9, duration: 0.07 })
+          .to(sel, { rotation: base - 8, duration: 0.09 })
+          .to(sel, { rotation: base + 6, duration: 0.09 })
+          .to(sel, { rotation: base - 4, duration: 0.09 })
+          .to(sel, { rotation: base, duration: 0.25, ease: 'elastic.out(1, 0.4)' });
+      ring('.lp-icon-a-tilt', -8, 1.5);
+      ring('.lp-icon-10-tilt', 7, 3.2);
+      gsap.to('.lp-ring', { scale: 1.12, opacity: 0.15, duration: 2.4, ease: 'sine.inOut', yoyo: true, repeat: -1, stagger: 0.6 });
 
       // Cuộn: hiện dần các khối
       gsap.utils.toArray<HTMLElement>('.lp-reveal').forEach((el) => {
@@ -158,12 +153,22 @@ export default function LandingPage({
         <div className="lp-blob absolute top-40 right-0 w-[28rem] h-[28rem] rounded-full bg-emerald-300/30 blur-3xl pointer-events-none" />
         <div className="absolute inset-0 pointer-events-none opacity-[0.35] [background-image:linear-gradient(#cbd5e1_1px,transparent_1px),linear-gradient(90deg,#cbd5e1_1px,transparent_1px)] [background-size:48px_48px] [mask-image:radial-gradient(ellipse_70%_60%_at_50%_30%,#000,transparent)]" />
 
-        <div className="lp-hero-3d hidden lg:block absolute inset-y-0 right-0 w-[52%] z-0">
-          {show3D && (
-            <Suspense fallback={null}>
-              <LandingScene onSlow={() => setSlow3D(true)} />
-            </Suspense>
-          )}
+        {/* Biểu tượng động 2D: A+ và 10 */}
+        <div className="lp-hero-art hidden lg:flex absolute inset-y-0 right-0 w-[48%] items-center justify-center pointer-events-none" aria-hidden>
+          <div className="relative w-[420px] h-[420px]">
+            <span className="lp-ring absolute inset-0 rounded-full border-2 border-blue-300/40" />
+            <span className="lp-ring absolute inset-10 rounded-full border-2 border-emerald-300/40" />
+            <span className="lp-ring absolute inset-20 rounded-full border-2 border-indigo-300/30" />
+            <div className="lp-icon-a absolute top-6 left-2">
+              <div className="lp-icon-a-tilt w-44 h-44 rounded-[2.2rem] bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-2xl shadow-blue-500/30 flex items-center justify-center font-heading font-black text-7xl" style={{ transform: 'rotate(-8deg)' }}>A+</div>
+            </div>
+            <div className="lp-icon-10 absolute bottom-4 right-0">
+              <div className="lp-icon-10-tilt glass-panel w-48 h-48 rounded-[2.2rem] flex flex-col items-center justify-center shadow-2xl shadow-emerald-500/20" style={{ transform: 'rotate(7deg)' }}>
+                <span className="font-heading font-black text-8xl leading-none text-transparent bg-clip-text bg-gradient-to-br from-emerald-500 to-teal-600">10</span>
+                <span className="mt-1 text-xs font-bold tracking-widest text-emerald-700/70">ĐIỂM</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="relative z-10 max-w-7xl mx-auto px-5 sm:px-6 pt-16 pb-24 lg:pt-28 lg:pb-32 min-h-[80vh] flex items-center">

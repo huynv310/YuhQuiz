@@ -13,6 +13,7 @@ import { readPendingExam, clearPendingExam } from './lib/examId';
 
 // === LANDING PAGE (UI/UX Pro Max + GSAP + Three.js) ===
 import LandingPage from './pages/LandingPage';
+import { LogoMark } from './components/Logo';
 
 // === TYPES ===
 import { Exam } from './types/exam';
@@ -156,9 +157,7 @@ export default function App() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center space-y-4">
-          <div className="w-12 h-12 rounded-2xl bg-primary text-white flex items-center justify-center font-heading font-bold text-xl animate-pulse">
-            YQ
-          </div>
+          <LogoMark className="w-12 h-12 animate-pulse" />
           <p className="text-mutedForeground text-sm font-medium">Đang khởi động...</p>
         </div>
       </div>

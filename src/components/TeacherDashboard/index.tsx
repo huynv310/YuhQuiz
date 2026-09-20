@@ -3,6 +3,7 @@ import { UserCircle, BookOpen, Database, BarChart3, Settings, LogOut, ArrowLeft 
 import { ExamManager } from './ExamManager';
 import { ProfileView } from '../ProfileView';
 import { QuestionBank } from './QuestionBank';
+import { LogoMark } from '../Logo';
 
 interface TeacherDashboardProps {
   currentUser?: any;
@@ -54,9 +55,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = (props) => {
         
         {/* LOGO */}
         <div className="h-16 flex items-center justify-center md:justify-start md:px-6 border-b border-slate-100 cursor-pointer" onClick={props.onBackToHome}>
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-white font-black text-xs shadow-sm">
-            YQ
-          </div>
+          <LogoMark className="w-8 h-8" />
           <div className="hidden md:block ml-3 leading-tight">
             <span className="block font-heading font-extrabold text-lg text-slate-800 tracking-tight">Teacher</span>
             {props.profile?.user_code && <span className="block text-[11px] text-slate-500">Mã: <b className="font-mono">{props.profile.user_code}</b></span>}

@@ -37,6 +37,10 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
   // 1. Quản lý chia đôi màn hình Desktop & Toàn màn hình PDF
   const [splitRatio, setSplitRatio] = useState<number>(55);
   const [isDragging, setIsDragging] = useState<boolean>(false);
+  // Xem lại bài trên điện thoại: đề (trên) và phiếu (dưới) chia dọc, mặc định 50/50, kéo được
+  const [mobileRatio, setMobileRatio] = useState<number>(50);
+  const centerRef = useRef<HTMLDivElement>(null);
+  const isMobileReview = isReview && window.innerWidth < 768;
   const [isPdfFullscreen, setIsPdfFullscreen] = useState<boolean>(false);
 
   // 2. Thu phóng file PDF độc lập (70% - 200%)
@@ -302,6 +306,13 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
 
   const handlePointerMove = (e: React.PointerEvent) => {
     if (!isDragging) return;
+    if (isMobileReview) {
+      const rect = centerRef.current?.getBoundingClientRect();
+      if (!rect || rect.height <= 0) return;
+      const r = ((e.clientY - rect.top) / rect.height) * 100;
+      setMobileRatio(Math.min(80, Math.max(20, r)));
+      return;
+    }
     const ratio = (e.clientX / window.innerWidth) * 100;
     if (ratio >= 25 && ratio <= 75) {
       setSplitRatio(ratio);
@@ -535,11 +546,13 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
       )}
 
       {/* 2. KHU VỰC TRUNG TÂM */}
-      <div className="flex flex-1 overflow-hidden relative">
+      <div ref={centerRef} className={`flex flex-1 overflow-hidden relative ${isReview ? 'flex-col md:flex-row' : ''}`}>
         
         {/* KHUNG ĐỀ THI PDF CÓ THANH THU PHÓNG ĐỘC LẬP */}
         <div 
-          style={{ width: window.innerWidth >= 768 ? (isPdfFullscreen ? '100%' : `${splitRatio}%`) : '100%' }} 
+          style={isMobileReview
+            ? { height: `${mobileRatio}%`, width: '100%', flex: 'none', transition: 'none' }
+            : { width: window.innerWidth >= 768 ? (isPdfFullscreen ? '100%' : `${splitRatio}%`) : '100%' }}
           className="h-full bg-[#525659] relative overflow-hidden flex flex-col flex-1 transition-all"
         >
           {/* SUB-HEADER KHUNG ĐỀ THI: CÔNG CỤ ZOOM VÀ ĐỔI VIEWER */}
@@ -677,6 +690,18 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
             <div className="w-3.5 h-8 bg-white border border-gray-300 rounded-full flex items-center justify-center shadow-sm pointer-events-none">
               <GripVertical className="w-2.5 h-2.5 text-gray-400" />
             </div>
+          </div>
+        )}
+
+        {/* THANH CHIA TỈ LỆ DỌC (CHỈ XEM LẠI BÀI TRÊN ĐIỆN THOẠI) */}
+        {isMobileReview && (
+          <div
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            className={`flex h-4 flex-shrink-0 items-center justify-center cursor-row-resize touch-none z-40 border-y border-gray-300 ${isDragging ? 'bg-primary' : 'bg-[#F0F0F0]'}`}
+          >
+            <div className="h-1.5 w-12 rounded-full bg-gray-400 pointer-events-none" />
           </div>
         )}
 
@@ -993,12 +1018,12 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
         <div 
           style={{ width: window.innerWidth >= 768 ? `${100 - splitRatio}%` : '100%' }} 
           className={`
-            fixed md:relative bottom-0 left-0 right-0 z-50 md:z-20 bg-[#FAFAFA] overflow-y-auto transition-transform duration-300 ease-out shadow-2xl md:shadow-none
-            ${isMobileSheetOpen ? 'translate-y-0 h-[85vh] md:h-full border-t-2 md:border-t-0 border-primary rounded-t-3xl md:rounded-none' : 'translate-y-full md:translate-y-0 h-0 md:h-full'}
+            ${isMobileReview ? 'relative flex-1 min-h-0 z-20' : 'fixed md:relative bottom-0 left-0 right-0 z-50 md:z-20 transition-transform duration-300 ease-out shadow-2xl md:shadow-none'} bg-[#FAFAFA] overflow-y-auto
+            ${isMobileReview ? '' : isMobileSheetOpen ? 'translate-y-0 h-[85vh] md:h-full border-t-2 md:border-t-0 border-primary rounded-t-3xl md:rounded-none' : 'translate-y-full md:translate-y-0 h-0 md:h-full'}
             md:block p-3 md:p-6
           `}
         >
-          <div className="md:hidden flex items-center justify-between pb-3 border-b border-gray-200 mb-4 sticky top-0 bg-[#FAFAFA] z-20 pt-1">
+          <div className={`${isMobileReview ? 'hidden' : 'md:hidden flex'} items-center justify-between pb-3 border-b border-gray-200 mb-4 sticky top-0 bg-[#FAFAFA] z-20 pt-1`}>
             <div className="flex items-center space-x-2">
               <span className="font-extrabold text-sm text-gray-900">Phiếu làm bài chi tiết</span>
               <span className="text-xs font-bold text-gray-500">({countAnswered()}/{totalQuestions} câu)</span>

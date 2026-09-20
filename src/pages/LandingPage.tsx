@@ -57,7 +57,8 @@ export default function LandingPage({
   onEnterDashboard,
 }: LandingPageProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const show3D = useShow3D();
+  const [slow3D, setSlow3D] = useState(false);
+  const show3D = useShow3D() && !slow3D;
 
   useGSAP(() => {
     const mm = gsap.matchMedia();
@@ -121,10 +122,10 @@ export default function LandingPage({
   }, { scope: containerRef });
 
   return (
-    <div ref={containerRef} className="relative min-h-screen bg-slate-50 overflow-x-clip font-sans text-slate-900 selection:bg-blue-200">
+    <div ref={containerRef} className="relative min-h-screen overflow-x-clip font-sans text-slate-900 selection:bg-blue-200">
 
       {/* ── NAVBAR ── */}
-      <nav className="sticky top-0 z-50 bg-slate-50/80 backdrop-blur-md border-b border-slate-200/50">
+      <nav className="glass-bar sticky top-0 z-50">
         <div className="flex items-center justify-between px-5 sm:px-6 py-3.5 max-w-7xl mx-auto w-full">
           <button onClick={() => window.location.reload()} aria-label="YuhQuiz" className="flex items-center space-x-2.5 hover:opacity-80 transition-opacity">
             <LogoMark className="w-10 h-10 drop-shadow-md" />
@@ -160,7 +161,7 @@ export default function LandingPage({
         <div className="lp-hero-3d hidden lg:block absolute inset-y-0 right-0 w-[52%] z-0">
           {show3D && (
             <Suspense fallback={null}>
-              <LandingScene />
+              <LandingScene onSlow={() => setSlow3D(true)} />
             </Suspense>
           )}
         </div>
@@ -208,7 +209,7 @@ export default function LandingPage({
         </div>
         <div className="lp-formats grid grid-cols-1 md:grid-cols-3 gap-6">
           {FORMATS.map((f) => (
-            <div key={f.no} className="lp-format relative bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm hover:shadow-xl transition-shadow overflow-hidden">
+            <div key={f.no} className="lp-format glass-panel relative p-8 rounded-[2rem] hover:shadow-xl transition-shadow overflow-hidden">
               <span className="absolute top-2 right-5 font-heading font-black text-7xl leading-none text-slate-100 select-none">{f.no}</span>
               <div className={`relative w-14 h-14 rounded-2xl flex items-center justify-center mb-6 ${f.tone}`}>{f.icon}</div>
               <h3 className="relative font-heading font-bold text-xl mb-2">Phần {f.no}: {f.title}</h3>
@@ -219,7 +220,7 @@ export default function LandingPage({
       </section>
 
       {/* ── TRÌNH DIỄN GIAO DIỆN ── */}
-      <section className="lp-show bg-gradient-to-b from-slate-50 via-blue-50/60 to-slate-50">
+      <section className="lp-show">
         <div className="lp-show-pin max-w-7xl mx-auto px-5 sm:px-6 py-20 lg:py-0 lg:h-screen lg:flex lg:items-center">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 w-full items-center">
             <div className="lg:col-span-4">

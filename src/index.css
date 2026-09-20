@@ -77,7 +77,7 @@ body {
     --mx: 50%; --my: 0%;
     background:
       radial-gradient(360px circle at var(--mx) var(--my), rgba(255,255,255,.35), transparent 65%),
-      rgba(255,255,255,.58);
+      rgba(255,255,255,.74);
     -webkit-backdrop-filter: blur(18px) saturate(1.7);
     backdrop-filter: blur(18px) saturate(1.7);
     border: 1px solid rgba(255,255,255,.55);
@@ -88,12 +88,21 @@ body {
   }
   .glass-bar { border-radius: 0; border-width: 0 0 1px 0; box-shadow: 0 1px 0 rgba(15,23,42,.05), inset 0 -1px 0 rgba(255,255,255,.4); background: rgba(255,255,255,.5); }
   .yq-overlay {
-    background: rgba(20,28,50,.22);
-    -webkit-backdrop-filter: blur(3px);
-    backdrop-filter: blur(3px);
+    background: rgba(15,23,42,.42);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
     animation: yq-fade .18s ease-out;
   }
-  .yq-overlay > .glass-panel { animation: yq-pop .28s cubic-bezier(.2,.9,.25,1.1); background-color: rgba(255,255,255,.76); }
+  .yq-overlay > .glass-panel { animation: yq-pop .28s cubic-bezier(.2,.9,.25,1.1); }
+  /* Cửa sổ / popup: nền gần đặc, không blur lồng blur, để chữ luôn rõ */
+  .yq-overlay .glass-panel {
+    background: rgba(255,255,255,.97);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    border-color: rgba(15,23,42,.08);
+    box-shadow: 0 24px 60px rgba(15,23,42,.28);
+  }
+  .yq-overlay .glass-panel .glass-panel { background: rgba(248,250,252,.95); box-shadow: 0 1px 2px rgba(15,23,42,.06); }
 }
 /* ===== Popup thống nhất: ô nhập trong suốt nhẹ, cuộn mượt, bottom-sheet trên điện thoại ===== */
 .yq-overlay { overscroll-behavior: contain; }

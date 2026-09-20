@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { LogoMark } from '../Logo';
 import { UserCircle, Dumbbell, BookOpen, BookMarked, Activity, LogOut, GraduationCap, ShieldCheck } from 'lucide-react';
 import { ExamList } from './ExamList';
 import { ProfileView } from '../ProfileView';
@@ -60,9 +61,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = (props) => {
         
         {/* LOGO */}
         <div className="h-20 flex items-center justify-center md:justify-start md:px-6 border-b border-slate-100">
-          <div className="w-10 h-10 rounded-2xl bg-emerald-500 flex items-center justify-center text-white font-extrabold shadow-sm">
-            <GraduationCap className="w-6 h-6" />
-          </div>
+          <LogoMark className="w-10 h-10 shadow-sm rounded-2xl" />
           <div className="hidden md:block ml-3">
             <span className="font-heading font-extrabold text-lg tracking-tight text-slate-800 block leading-tight">
               YuhQuiz

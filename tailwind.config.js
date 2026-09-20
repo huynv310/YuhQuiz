@@ -7,19 +7,27 @@ export default {
   theme: {
     extend: {
       colors: {
-        spotify: {
-          green: '#1DB954',
-          darkgreen: '#169C46',
-          bg: '#FAFAFA',
-          card: '#FFFFFF',
-          dark: '#121212',
-          subtext: '#6A6A6A',
-          border: '#EAEAEA'
-        }
+        primary: {
+          DEFAULT: '#2563EB', // Trust Blue
+          dark: '#1D4ED8',
+          light: '#DBEAFE',
+        },
+        accent: {
+          DEFAULT: '#EA580C', // Vibrant Orange
+          dark: '#C2410C',
+        },
+        background: '#F8FAFC',
+        surface: '#FFFFFF',
+        foreground: '#1E293B',
+        muted: '#F1F5F9',
+        mutedForeground: '#64748B',
+        destructive: '#DC2626',
+        success: '#16A34A',
+        border: '#E2E8F0',
       },
       fontFamily: {
-        sans: ['Plus Jakarta Sans', 'sans-serif'],
-        mono: ['JetBrains Mono', 'monospace'],
+        sans: ['Inter', 'sans-serif'], // Body font
+        heading: ['"Be Vietnam Pro"', 'sans-serif'], // Headings
       }
     },
   },

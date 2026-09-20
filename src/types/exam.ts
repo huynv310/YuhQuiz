@@ -12,13 +12,18 @@ export interface ExamConfig {
   p1_total_score?: number;
   p2_total_score?: number;
   p3_total_score?: number;
+  /** Đề sinh từ Kho bài tập: danh sách ảnh câu hỏi theo thứ tự (thay cho PDF). */
+  question_images?: string[];
+  source?: 'question_bank';
 }
 
 export interface Exam {
   id: string;
+  short_id?: string | null;
+  grade?: number | null;
   title: string;
   subject: string;
-  pdf_url: string;
+  pdf_url?: string | null;
   config: ExamConfig;
   answer_keys: {
     part_1: Record<number, string>;
@@ -108,4 +113,17 @@ export interface Submission {
   status: 'in_progress' | 'submitted';
   started_at: string;
   submitted_at: string | null;
+}
+
+export interface StudentAnswers {
+  part_1?: Record<number, string>;
+  part_2?: Record<number, Record<string, boolean>>;
+  part_3?: Record<number, string>;
+  timestamps?: Record<string, any>;
+}
+
+export interface ScoreDetails {
+  part_1?: Record<number, { is_correct: boolean; score: number; student_ans?: string; key?: string }>;
+  part_2?: Record<number, { correct_count: number; score: number; details?: Record<string, boolean> }>;
+  part_3?: Record<number, { is_correct: boolean; score: number; student_ans?: string; key?: string }>;
 }

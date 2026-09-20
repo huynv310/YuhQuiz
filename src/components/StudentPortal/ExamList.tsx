@@ -3,24 +3,30 @@ import {
   BookOpen, Users, Clock, Award, Trophy, TrendingUp, 
   Calendar, CheckCircle2, ArrowRight, Plus, RefreshCw, LogOut, 
   GraduationCap, School, ShieldCheck, Eye, Sparkles, Filter, 
-  Layers, CheckCircle 
-} from 'lucide-react';
-import { supabase } from '../lib/supabase';
-import { Exam, Submission } from '../types/exam';
-import { JoinClassModal } from './JoinClassModal';
-import { LeaderboardModal } from './LeaderboardModal';
-import { SUBJECT_PRESETS } from '../constants/subjectPresets';
+  Layers, CheckCircle, Download } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
+import { Exam, Submission } from '../../types/exam';
+import { JoinClassModal } from '../JoinClassModal';
+import { LeaderboardModal } from '../LeaderboardModal';
+import { SUBJECT_PRESETS } from '../../constants/subjectPresets';
+import { RescuePanel } from './RescuePanel';
+import { downloadRescue } from '../../lib/rescue';
+import { ExamSearchBar, ExamIdChips, SubjectGroups, filterExams } from '../SubjectGroups';
 
 interface StudentPortalProps {
   currentUser: any;
+  profile?: any;
+  onReviewExam?: (examId: string, studentName: string, className: string, school: string, submissionId?: string) => void;
   onStartExam: (examId: string, studentName: string, className: string, school: string) => void;
   onLogout: () => void;
   onSwitchToTeacher?: () => void;
 }
 
-export const StudentPortal: React.FC<StudentPortalProps> = ({
+export const ExamList: React.FC<StudentPortalProps> = ({
   currentUser,
+  profile,
   onStartExam,
+  onReviewExam,
   onLogout,
   onSwitchToTeacher,
 }) => {
@@ -32,6 +38,9 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
 
   // Tab lọc theo từng lớp học (YÊU CẦU: PHÂN LOẠI RIÊNG THEO LỚP)
   const [selectedClassTab, setSelectedClassTab] = useState<string>('all');
+  const [examQuery, setExamQuery] = useState('');
+  const [examGrade, setExamGrade] = useState<number | 'all'>('all');
+  const [examSubject, setExamSubject] = useState('all');
 
   // Modals
   const [isJoinClassOpen, setIsJoinClassOpen] = useState(false);
@@ -141,6 +150,20 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
   }, [currentUser]);
 
   // VÀO THI NGAY KHÔNG CẦN POPUP RƯỜM RÀ (GIỐNG NGUYÊN BẢN CHẾ ĐỘ KHÁCH)
+  /** Làm lại: nếu phiên lưu trong máy đã nộp rồi thì bỏ để hệ thống cấp phiên mới; còn dở thì giữ nguyên để làm tiếp. */
+  const handleRetakeExam = (ex: any) => {
+    const sName = currentUser?.full_name || currentUser?.email?.split('@')[0] || 'Học sinh';
+    let cName = '12A';
+    if (ex.assignedClassNames?.length > 0) cName = ex.assignedClassNames[0];
+    else if (joinedClasses.length > 0) cName = joinedClasses[0].name;
+    try {
+      const key = `session_${String(ex.id).trim()}_${sName.trim()}_${cName.trim()}`;
+      const tok = localStorage.getItem(key);
+      if (tok && submissions.some(s => s.session_token === tok && s.status === 'submitted')) localStorage.removeItem(key);
+    } catch { /* noop */ }
+    handleLaunchExam(ex);
+  };
+
   const handleLaunchExam = (ex: any) => {
     const sName = currentUser?.full_name || currentUser?.email?.split('@')[0] || 'Học sinh';
     
@@ -161,10 +184,12 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
   const selectedClassName = selectedClassObj ? selectedClassObj.name : null;
 
   // Lọc danh sách đề thi theo Tab lớp
-  const currentExams = exams.filter(e => {
+  const classExams = exams.filter(e => {
     if (selectedClassTab === 'all') return true;
     return e.assignedClassIds?.includes(selectedClassTab);
   });
+  const currentExams = filterExams(classExams, examQuery, examGrade, examSubject);
+  const looksLikeCode = /^[0-9A-Za-z]{6}$/.test(examQuery.trim());
 
   // Lọc danh sách bài làm và tính điểm trung bình riêng của lớp đó
   const classSubs = submissions.filter(s => {
@@ -178,91 +203,60 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
     : '--';
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] text-[#121212] font-sans antialiased pb-12 flex flex-col">
-      
-      {/* 1. TOP NAVBAR */}
-      <nav className="h-20 bg-white border-b border-[#EAEAEA] px-4 md:px-8 flex items-center justify-between shadow-xs sticky top-0 z-30">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-2xl bg-[#1DB954] flex items-center justify-center text-white font-extrabold shadow-sm">
-            <GraduationCap className="w-6 h-6" />
-          </div>
-          <div>
-            <span className="font-extrabold text-lg tracking-tight leading-tight block">
-              Yuh<span className="text-[#1DB954]">Quiz</span> • Góc Học Tập
-            </span>
-            <span className="text-[11px] text-gray-400 font-semibold block">
-              Mã định danh: <b className="font-mono text-gray-700">{currentUser?.user_code || 'HS-ONLINE'}</b>
-            </span>
-          </div>
-        </div>
-
-        <div className="flex items-center space-x-3">
-          {onSwitchToTeacher && (
-            <button
-              onClick={onSwitchToTeacher}
-              className="flex items-center space-x-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-full font-bold text-xs transition-all shadow-xs"
-              title="Quay lại giao diện quản trị giáo viên"
-            >
-              <ShieldCheck className="w-4 h-4 text-[#1DB954]" />
-              <span className="hidden sm:inline">Quản trị GV</span>
-            </button>
-          )}
-
-          <button
-            onClick={() => setIsJoinClassOpen(true)}
-            className="flex items-center space-x-1.5 bg-emerald-50 hover:bg-emerald-100 text-[#15803D] border border-emerald-200 px-4 py-2 rounded-full font-bold text-xs transition-all shadow-xs"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Vào lớp mới</span>
-          </button>
-
-          <button
-            onClick={onLogout}
-            className="p-2.5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 transition-all"
-            title="Đăng xuất"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
-        </div>
-      </nav>
+    <div className="flex-1 bg-transparent text-slate-900 font-sans antialiased pb-12 flex flex-col min-h-screen">
 
       {/* 2. PROFILE HERO BANNER & THỐNG KÊ RIÊNG THEO LỚP */}
-      <div className="bg-white border-b border-gray-100 py-6 px-4 md:px-8">
-        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-center space-x-3.5">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#1DB954] to-emerald-400 text-white font-extrabold text-xl flex items-center justify-center shadow-md">
+      <div className="glass-panel border-b border-gray-100 py-6 px-4 md:px-8 sticky top-0 z-20">
+        <div className="max-w-6xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-6">
+          
+          {/* User Info */}
+          <div className="flex items-center space-x-4">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-blue-400 text-white font-extrabold text-2xl flex items-center justify-center shadow-md">
               {currentUser?.full_name ? currentUser.full_name.charAt(0).toUpperCase() : 'H'}
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <h2 className="font-extrabold text-xl text-gray-900 leading-tight">
-                  {currentUser?.full_name || currentUser?.email?.split('@')[0] || 'Học sinh'}
+                <h2 className="font-extrabold text-2xl text-gray-900 leading-tight">
+                  {profile?.full_name || currentUser?.full_name || currentUser?.email?.split('@')[0] || 'Học sinh'}
                 </h2>
-                <span className="text-[10px] bg-emerald-50 text-[#15803D] px-2 py-0.5 rounded-full font-bold border border-emerald-200">
+                <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-bold border border-emerald-200">
                   Học sinh
                 </span>
               </div>
-              <div className="flex items-center space-x-2 text-xs text-gray-500 mt-1">
-                <span>{currentUser?.school || 'Trường THPT'}</span>
+              <div className="flex items-center space-x-2 text-sm text-gray-500 mt-1">
+                <span>{profile?.school || currentUser?.school || 'Trường THPT'}</span>
                 <span>•</span>
-                <span className="text-[#1DB954] font-bold">Đã tham gia {joinedClasses.length} lớp học</span>
+                <span>Mã: <b className="font-mono text-gray-700">{profile?.user_code || '—'}</b></span>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center space-x-3">
-            <div className="bg-[#FAFAFA] p-3 px-5 rounded-2xl border border-gray-200 text-center">
-              <span className="text-[10px] uppercase font-bold text-gray-400 block">
-                {selectedClassName ? `Điểm TB Lớp ${selectedClassName}` : 'Điểm TB Tích Lũy'}
-              </span>
-              <span className="text-xl font-extrabold text-[#1DB954]">{classAvgScore}</span>
+          {/* Stats and Action */}
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-3">
+              <div className="bg-white/50 p-3 px-5 rounded-2xl border border-white/70 text-center">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">
+                  {selectedClassName ? `Điểm TB Lớp ${selectedClassName}` : 'Điểm TB Tích Lũy'}
+                </span>
+                <span className="text-xl font-extrabold text-emerald-600">{classAvgScore}</span>
+              </div>
+              <div className="bg-white/50 p-3 px-5 rounded-2xl border border-white/70 text-center">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">
+                  {selectedClassName ? `Đã làm ở ${selectedClassName}` : 'Tổng bài đã nộp'}
+                </span>
+                <span className="text-xl font-extrabold text-slate-800">{completedSubs.length} đề</span>
+              </div>
             </div>
-            <div className="bg-[#FAFAFA] p-3 px-5 rounded-2xl border border-gray-200 text-center">
-              <span className="text-[10px] uppercase font-bold text-gray-400 block">
-                {selectedClassName ? `Đã làm ở ${selectedClassName}` : 'Tổng bài đã nộp'}
-              </span>
-              <span className="text-xl font-extrabold text-gray-800">{completedSubs.length} đề</span>
-            </div>
+
+            <div className="h-10 w-px bg-slate-200 hidden md:block"></div>
+
+            <button
+              onClick={() => setIsJoinClassOpen(true)}
+              className="flex items-center space-x-1.5 bg-blue-50 hover:bg-blue-100 text-primary-dark border border-blue-200 px-4 py-3 rounded-2xl font-bold text-sm transition-all shadow-sm"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Vào lớp mới</span>
+            </button>
           </div>
         </div>
       </div>
@@ -273,16 +267,16 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
           <button
             onClick={() => setActiveTab('exams')}
             className={`px-4 py-2 rounded-xl transition-all ${
-              activeTab === 'exams' ? 'bg-[#1DB954] text-white shadow-xs' : 'text-gray-600 hover:bg-gray-100'
+              activeTab === 'exams' ? 'bg-primary text-white shadow-xs' : 'text-gray-600 hover:bg-gray-100'
             }`}
           >
-            Đề thi & Bài tập ({currentExams.length})
+            Đề thi & Bài tập ({classExams.length})
           </button>
 
           <button
             onClick={() => setActiveTab('classes')}
             className={`px-4 py-2 rounded-xl transition-all ${
-              activeTab === 'classes' ? 'bg-[#1DB954] text-white shadow-xs' : 'text-gray-600 hover:bg-gray-100'
+              activeTab === 'classes' ? 'bg-primary text-white shadow-xs' : 'text-gray-600 hover:bg-gray-100'
             }`}
           >
             Lớp học của tôi ({joinedClasses.length})
@@ -291,7 +285,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
           <button
             onClick={() => setActiveTab('history')}
             className={`px-4 py-2 rounded-xl transition-all ${
-              activeTab === 'history' ? 'bg-[#1DB954] text-white shadow-xs' : 'text-gray-600 hover:bg-gray-100'
+              activeTab === 'history' ? 'bg-primary text-white shadow-xs' : 'text-gray-600 hover:bg-gray-100'
             }`}
           >
             Tiến độ & Lịch sử thi ({completedSubs.length})
@@ -320,7 +314,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                 onClick={() => setSelectedClassTab(cls.id)}
                 className={`px-3.5 py-1.5 rounded-full font-bold whitespace-nowrap transition-all ${
                   selectedClassTab === cls.id 
-                    ? 'bg-[#1DB954] text-white shadow-xs' 
+                    ? 'bg-primary text-white shadow-xs' 
                     : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
                 }`}
               >
@@ -342,13 +336,14 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                 </span>
               </div>
 
-              {currentExams.length === 0 ? (
-                <div className="bg-white p-8 rounded-3xl border border-dashed border-gray-200 text-center text-gray-400 text-xs">
-                  Không có bài tập nào được giao cho lớp này.
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {currentExams.map((ex) => {
+              <ExamSearchBar query={examQuery} onQuery={setExamQuery} grade={examGrade} onGrade={setExamGrade} subject={examSubject} onSubject={setExamSubject} />
+              {looksLikeCode && currentExams.length === 0 && (
+                <button onClick={() => onStartExam(examQuery.trim().toUpperCase(), '', '', '')} className="btn btn-primary">
+                  Mở đề có mã {examQuery.trim().toUpperCase()}
+                </button>
+              )}
+
+              <SubjectGroups items={currentExams} empty="Không có đề nào phù hợp." renderItem={(ex) => {
                     const preset = SUBJECT_PRESETS[ex.subject];
                     const badgeColor = preset?.badge || 'bg-gray-100 text-gray-700';
                     const subRecord = submissions.find(s => s.exam_id === ex.id && s.status === 'submitted');
@@ -356,7 +351,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                     return (
                       <div
                         key={ex.id}
-                        className="bg-white p-5 rounded-3xl border border-gray-200 shadow-xs hover:border-gray-300 transition-all flex flex-col justify-between space-y-4"
+                        className="glass-panel p-5 rounded-3xl shadow-xs hover:border-gray-300 transition-all flex flex-col justify-between space-y-4"
                       >
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
@@ -371,7 +366,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                                   🔒 Lớp: {ex.assignedClassNames?.join(', ') || 'Riêng theo lớp'}
                                 </span>
                               ) : (
-                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-[#15803D] border border-emerald-200 whitespace-nowrap flex-shrink-0">
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-primary-dark border border-emerald-200 whitespace-nowrap flex-shrink-0">
                                   🌐 Kỳ thi Công khai
                                 </span>
                               )}
@@ -379,6 +374,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                             <span className="text-xs font-mono text-gray-500 font-bold whitespace-nowrap flex-shrink-0">{ex.duration_minutes} phút</span>
                           </div>
 
+                          <div className="flex flex-wrap gap-1.5"><ExamIdChips exam={ex} /></div>
                           <h3 className="font-extrabold text-base text-gray-900 leading-snug">
                             {ex.title}
                           </h3>
@@ -397,20 +393,24 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
 
                           {subRecord ? (
                             <div className="flex items-center space-x-2">
-                              <span className="text-xs font-extrabold text-[#1DB954] bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200">
+                              <span className="text-xs font-extrabold text-primary bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200">
                                 Điểm: {subRecord.score}đ
                               </span>
-                              <button
-                                onClick={() => handleLaunchExam(ex)}
-                                className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3.5 py-1.5 rounded-full text-xs font-bold"
-                              >
-                                Xem lại
-                              </button>
+                              {ex.allow_multiple_attempts === false ? (
+                                <span className="text-xs font-bold text-slate-400 px-2">Đã nộp</span>
+                              ) : (
+                                <button
+                                  onClick={() => handleRetakeExam(ex)}
+                                  className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3.5 py-1.5 rounded-full text-xs font-bold"
+                                >
+                                  Làm lại
+                                </button>
+                              )}
                             </div>
                           ) : (
                             <button
                               onClick={() => handleLaunchExam(ex)}
-                              className="bg-[#1DB954] hover:bg-[#169C46] active:scale-95 text-white px-5 py-2 rounded-full text-xs font-extrabold flex items-center space-x-1.5 shadow-sm transition-all"
+                              className="bg-primary hover:bg-primary-dark active:scale-95 text-white px-5 py-2 rounded-full text-xs font-extrabold flex items-center space-x-1.5 shadow-sm transition-all"
                             >
                               <span>Làm bài thi</span>
                               <ArrowRight className="w-3.5 h-3.5" />
@@ -419,9 +419,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                         </div>
                       </div>
                     );
-                  })}
-                </div>
-              )}
+                  }} />
             </div>
           )}
 
@@ -432,7 +430,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                 <span className="font-bold text-xs text-gray-400 uppercase tracking-wider">Danh sách lớp học đã tham gia</span>
                 <button
                   onClick={() => setIsJoinClassOpen(true)}
-                  className="bg-[#1DB954] text-white px-3.5 py-1.5 rounded-full text-xs font-bold flex items-center space-x-1 shadow-sm"
+                  className="bg-primary text-white px-3.5 py-1.5 rounded-full text-xs font-bold flex items-center space-x-1 shadow-sm"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Nhập mã vào lớp</span>
@@ -448,7 +446,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                   </p>
                   <button
                     onClick={() => setIsJoinClassOpen(true)}
-                    className="bg-[#1DB954] text-white px-5 py-2 rounded-xl text-xs font-bold"
+                    className="bg-primary text-white px-5 py-2 rounded-xl text-xs font-bold"
                   >
                     Nhập mã tham gia lớp
                   </button>
@@ -462,11 +460,11 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                         setSelectedClassTab(cls.id);
                         setActiveTab('exams');
                       }}
-                      className="bg-white p-5 rounded-3xl border border-gray-200 space-y-3 shadow-xs hover:border-[#1DB954] transition-all cursor-pointer"
+                      className="glass-panel p-5 rounded-3xl space-y-3 shadow-xs hover:border-primary transition-all cursor-pointer"
                     >
                       <div className="flex justify-between items-start">
                         <span className="font-extrabold text-base text-gray-900">{cls.name}</span>
-                        <span className="text-xs bg-emerald-50 text-[#15803D] px-2 py-0.5 rounded-full font-bold">
+                        <span className="text-xs bg-emerald-50 text-primary-dark px-2 py-0.5 rounded-full font-bold">
                           {cls.subject}
                         </span>
                       </div>
@@ -474,7 +472,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                       <p className="text-[11px] text-gray-400">{cls.school || 'Trường THPT'}</p>
                       <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-[11px] font-mono text-gray-400">
                         <span>Mã lớp: <b className="text-gray-700">{cls.class_code}</b></span>
-                        <span className="text-[#1DB954] font-sans font-bold flex items-center">
+                        <span className="text-primary font-sans font-bold flex items-center">
                           Xem bài tập →
                         </span>
                       </div>
@@ -488,7 +486,9 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
           {/* TAB 3: TIẾN ĐỘ & LỊCH SỬ THI RIÊNG CỦA LỚP ĐANG CHỌN */}
           {activeTab === 'history' && (
             <div className="space-y-6">
-              <div className="bg-white rounded-3xl border border-gray-200 p-5 shadow-xs">
+              <RescuePanel currentUser={{ ...currentUser, school: profile?.school }} submittedTokens={new Set(submissions.filter(s => s.status === 'submitted').map(s => s.session_token))}
+                           examTitleOf={id => exams.find(e => e.id === id)?.title} onSubmitted={loadStudentData} />
+              <div className="glass-panel rounded-3xl border border-gray-200 p-5 shadow-xs">
                 <div className="flex justify-between items-center mb-3">
                   <span className="font-bold text-xs text-gray-500 uppercase tracking-wider">
                     {selectedClassName ? `Lịch sử bài làm Lớp ${selectedClassName}` : 'Toàn bộ lịch sử làm bài'}
@@ -505,7 +505,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                 ) : (
                   <div className="space-y-3">
                     {completedSubs.map((sub) => (
-                      <div key={sub.id} className="bg-gray-50 p-3.5 rounded-2xl border border-gray-200/80 flex items-center justify-between text-xs">
+                      <div key={sub.id} className="bg-white/50 p-3.5 rounded-2xl border border-gray-200/80 flex items-center justify-between text-xs">
                         <div>
                           <span className="font-extrabold text-sm text-gray-900 block">{sub.student_name}</span>
                           <span className="text-[11px] text-gray-500">
@@ -513,7 +513,15 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                           </span>
                         </div>
                         <div className="text-right">
-                          <span className="text-base font-extrabold text-[#1DB954] block">
+                          {onReviewExam && (
+                            <button onClick={() => onReviewExam(sub.exam_id, sub.student_name, sub.class_name || '', profile?.school || 'THPT', sub.id)}
+                                    className="btn btn-secondary !py-1 !px-2.5 !text-xs mb-1"><Eye className="w-3.5 h-3.5" /> Xem lại bài & đáp án</button>
+                          )}
+                          {sub.answers && sub.session_token && (
+                            <button onClick={() => downloadRescue({ examId: sub.exam_id, examTitle: exams.find(e => e.id === sub.exam_id)?.title, studentName: sub.student_name, className: sub.class_name || '', sessionToken: sub.session_token, answers: sub.answers, cheatCount: sub.cheat_count || 0, totalAwaySecs: sub.total_away_seconds || 0, timestamp: Date.now() })}
+                                    className="btn btn-secondary !py-1 !px-2.5 !text-xs mb-1 ml-1"><Download className="w-3.5 h-3.5" /> Xuất .yuhquiz</button>
+                          )}
+                          <span className="text-base font-extrabold text-primary block">
                             {sub.score !== null ? `${sub.score} đ` : '--'}
                           </span>
                           <span className="text-[10px] text-gray-400">

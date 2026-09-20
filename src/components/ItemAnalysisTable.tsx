@@ -68,7 +68,7 @@ export const ItemAnalysisTable: React.FC<ItemAnalysisTableProps> = ({ exam, subm
   p3Stats.filter(s => s.rate < 25).forEach(s => hardQuestions.push(`Câu ${s.q} (Phần III - Đúng ${s.rate}%)`));
 
   return (
-    <div className="bg-white border border-gray-200 rounded-3xl p-5 shadow-sm space-y-4">
+    <div className="glass-panel rounded-3xl p-5 shadow-sm space-y-4">
       <div className="flex items-center justify-between pb-3 border-b border-gray-100">
         <div>
           <h3 className="font-extrabold text-sm text-gray-900 flex items-center space-x-1.5">

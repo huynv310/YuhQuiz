@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { saveRescue } from '../lib/rescue';
 
 export function useAutoSave(
   answers: any,
@@ -10,7 +11,7 @@ export function useAutoSave(
   isSubmitted: boolean = false,
   studentId?: string | null
 ) {
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isFirstRender = useRef(true);
   const latestAnswers = useRef(answers);
   latestAnswers.current = answers;
@@ -24,13 +25,14 @@ export function useAutoSave(
 
     if (examId && sessionToken && !isSubmitted) {
       localStorage.setItem(`draft_${examId}_${sessionToken}`, JSON.stringify(answers));
+      saveRescue({ examId, sessionToken, studentName, className, answers });
     }
   }, [answers, examId, sessionToken, isSubmitted]);
 
-  // 2. Đồng bộ ngầm lên Supabase (Debounce 5s)
-  const syncToServer = useCallback(() => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+  // 2. Đồng bộ ngầm lên Supabase (Throttled 1 phút)
+  const lastSync = useRef<number>(0);
 
+  const syncToServer = useCallback(() => {
     if (isSubmitted) return;
 
     const hasData = 
@@ -40,33 +42,70 @@ export function useAutoSave(
 
     if (!hasData) return;
 
-    timeoutRef.current = setTimeout(async () => {
-      if (isSubmitted) return;
+    const now = Date.now();
+    const timeSinceLastSync = now - lastSync.current;
+    
+    // Nếu chưa đủ 60s, đặt timeout cho phần dư
+    if (timeSinceLastSync < 60000) {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(async () => {
+        if (isSubmitted) return;
+        try {
+          lastSync.current = Date.now();
+          await supabase.rpc('save_draft', {
+            p_exam_id: examId,
+            p_session_token: sessionToken,
+            p_student_name: studentName,
+            p_class_name: className,
+            p_answers: latestAnswers.current,
+          });
+        } catch (err) {
+          console.warn('Tạm mất kết nối mạng, bài làm vẫn được bảo vệ tại LocalStorage.');
+        }
+      }, 60000 - timeSinceLastSync);
+      return;
+    }
 
+    // Nếu đã đủ 60s, chạy luôn
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    
+    // Chạy bất đồng bộ
+    (async () => {
+      if (isSubmitted) return;
       try {
-        await supabase.from('submissions').upsert({
-          exam_id: examId,
-          session_token: sessionToken,
-          student_name: studentName,
-          class_name: className,
-          answers: latestAnswers.current,
-          student_id: studentId || null,
-          status: 'in_progress',
-        }, { onConflict: 'exam_id,session_token' });
+        lastSync.current = Date.now();
+        await supabase.rpc('save_draft', {
+            p_exam_id: examId,
+            p_session_token: sessionToken,
+            p_student_name: studentName,
+            p_class_name: className,
+            p_answers: latestAnswers.current,
+          });
       } catch (err) {
         console.warn('Tạm mất kết nối mạng, bài làm vẫn được bảo vệ tại LocalStorage.');
       }
-    }, 5000);
+    })();
   }, [examId, sessionToken, studentName, className, isSubmitted, studentId]);
+
+  // Ghi nhận giờ bắt đầu ở server (để server kiểm tra thời lượng khi nộp)
+  useEffect(() => {
+    if (!examId || !sessionToken || isSubmitted) return;
+    supabase
+      .rpc('start_attempt', {
+        p_exam_id: examId,
+        p_session_token: sessionToken,
+        p_student_name: studentName,
+        p_class_name: className,
+      })
+      .then(() => undefined, () => undefined);
+  }, [examId, sessionToken]);
 
   useEffect(() => {
     if (isSubmitted) {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       return;
     }
-
     syncToServer();
-
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };

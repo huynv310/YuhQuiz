@@ -76,10 +76,10 @@ export const ScoreDistributionChart: React.FC<ScoreDistributionChartProps> = ({ 
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-3xl p-5 shadow-sm space-y-4">
+    <div className="glass-panel rounded-3xl p-5 shadow-sm space-y-4">
       <div className="flex items-center justify-between pb-3 border-b border-gray-100">
         <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 rounded-xl bg-emerald-50 text-[#1DB954] flex items-center justify-center">
+          <div className="w-8 h-8 rounded-xl bg-emerald-50 text-primary flex items-center justify-center">
             <BarChart3 className="w-4 h-4" />
           </div>
           <div>
@@ -89,7 +89,7 @@ export const ScoreDistributionChart: React.FC<ScoreDistributionChartProps> = ({ 
         </div>
 
         <div className="flex items-center space-x-2 text-[11px] font-bold">
-          <span className="bg-emerald-50 text-[#15803D] px-2.5 py-1 rounded-full border border-emerald-200">
+          <span className="bg-emerald-50 text-primary-dark px-2.5 py-1 rounded-full border border-emerald-200">
             Sĩ số: {validScores.length} bài thi
           </span>
         </div>
@@ -99,7 +99,7 @@ export const ScoreDistributionChart: React.FC<ScoreDistributionChartProps> = ({ 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
         <div className="bg-[#FAFAFA] p-2.5 rounded-2xl border border-gray-100 text-center">
           <span className="text-[10px] text-gray-400 block uppercase font-bold">Điểm Trung Bình</span>
-          <span className="text-base font-extrabold text-[#1DB954]">{mean}</span>
+          <span className="text-base font-extrabold text-primary">{mean}</span>
         </div>
 
         <div className="bg-[#FAFAFA] p-2.5 rounded-2xl border border-gray-100 text-center">
@@ -139,8 +139,8 @@ export const ScoreDistributionChart: React.FC<ScoreDistributionChartProps> = ({ 
                   width={w}
                   height={barHeight}
                   rx="4"
-                  fill="#1DB954"
-                  className="transition-all hover:fill-[#169C46] cursor-pointer opacity-90"
+                  fill="#2563EB"
+                  className="transition-all hover:fill-[#1D4ED8] cursor-pointer opacity-90"
                 />
                 {/* Số lượng bài thi trên đầu cột */}
                 {count > 0 && (
@@ -184,7 +184,7 @@ export const ScoreDistributionChart: React.FC<ScoreDistributionChartProps> = ({ 
       <div className="flex items-center justify-between text-[11px] text-gray-500 pt-2 border-t border-gray-100">
         <div className="flex items-center space-x-3">
           <span className="flex items-center space-x-1">
-            <span className="w-2.5 h-2.5 rounded bg-[#1DB954] inline-block" />
+            <span className="w-2.5 h-2.5 rounded bg-primary inline-block" />
             <span>Phổ điểm thực tế</span>
           </span>
           <span className="flex items-center space-x-1">
@@ -196,7 +196,7 @@ export const ScoreDistributionChart: React.FC<ScoreDistributionChartProps> = ({ 
         <div>
           <span>Đạt (≥5đ): <b className="text-emerald-700">{((passedCount / validScores.length) * 100).toFixed(0)}%</b></span>
           <span className="mx-2">•</span>
-          <span>Giỏi (≥8đ): <b className="text-[#1DB954]">{((excellentCount / validScores.length) * 100).toFixed(0)}%</b></span>
+          <span>Giỏi (≥8đ): <b className="text-primary">{((excellentCount / validScores.length) * 100).toFixed(0)}%</b></span>
         </div>
       </div>
     </div>

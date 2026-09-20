@@ -47,11 +47,11 @@ export const ExamCardSelector: React.FC<ExamCardSelectorProps> = ({
         const preset = SUBJECT_PRESETS[ex.subject];
         const badgeColor = preset?.badge || 'bg-gray-100 text-gray-700 border-gray-200';
 
-        let cardStyle = 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-xs cursor-pointer';
+        let cardStyle = 'bg-white/60 border-white/70 hover:border-primary/40 cursor-pointer';
         if (!isOpen) {
           cardStyle = 'opacity-60 cursor-not-allowed bg-gray-50 border-gray-200';
         } else if (isSelected) {
-          cardStyle = 'bg-white border-[#1DB954] shadow-md ring-2 ring-[#1DB954]/60';
+          cardStyle = 'bg-white border-primary shadow-md ring-2 ring-primary/60';
         }
 
         return (
@@ -75,7 +75,7 @@ export const ExamCardSelector: React.FC<ExamCardSelectorProps> = ({
                     <span className="whitespace-nowrap">Bài tập lớp</span>
                   </span>
                 ) : (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-[#15803D] border border-emerald-200 flex items-center space-x-0.5 whitespace-nowrap flex-shrink-0">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-primary-dark border border-emerald-200 flex items-center space-x-0.5 whitespace-nowrap flex-shrink-0">
                     <Globe className="w-2.5 h-2.5 inline mr-0.5 flex-shrink-0" />
                     <span className="whitespace-nowrap">Công khai</span>
                   </span>
@@ -110,8 +110,8 @@ export const ExamCardSelector: React.FC<ExamCardSelectorProps> = ({
                     <span>Đã đóng: {formatDateTime(ex.end_at)}</span>
                   </span>
                 ) : (
-                  <span className="inline-flex items-center space-x-1 text-[#15803D] bg-emerald-50 px-2 py-0.5 rounded-full font-bold text-[10px] border border-emerald-200">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#1DB954] animate-pulse" />
+                  <span className="inline-flex items-center space-x-1 text-primary-dark bg-emerald-50 px-2 py-0.5 rounded-full font-bold text-[10px] border border-emerald-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
                     <span>Đang mở</span>
                   </span>
                 )}

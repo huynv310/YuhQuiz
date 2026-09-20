@@ -5,7 +5,7 @@ import {
   Award, AlertTriangle, ShieldAlert, CheckCircle2 
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { generateQrSvg } from '../utils/qrGenerator';
+import { QrImage } from './QrImage';
 
 interface ClassroomModalProps {
   currentUser: any;
@@ -272,8 +272,8 @@ export const ClassroomModal: React.FC<ClassroomModalProps> = ({ currentUser, onC
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl max-w-5xl w-full p-6 max-h-[92vh] flex flex-col shadow-2xl relative font-sans text-[#121212]">
+    <div className="fixed inset-0 yq-overlay z-50 flex items-center justify-center p-4">
+      <div className="glass-panel rounded-3xl max-w-5xl w-full p-6 max-h-[92vh] flex flex-col shadow-2xl relative font-sans text-[#121212]">
         <button
           onClick={onClose}
           className="absolute top-5 right-5 w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 font-bold transition-all"
@@ -282,7 +282,7 @@ export const ClassroomModal: React.FC<ClassroomModalProps> = ({ currentUser, onC
         </button>
 
         <div className="flex items-center space-x-3 pb-4 border-b border-gray-100">
-          <div className="w-10 h-10 rounded-2xl bg-[#1DB954] flex items-center justify-center text-white font-extrabold shadow-sm">
+          <div className="w-10 h-10 rounded-2xl bg-primary flex items-center justify-center text-white font-extrabold shadow-sm">
             <Users className="w-5 h-5" />
           </div>
           <div>
@@ -299,7 +299,7 @@ export const ClassroomModal: React.FC<ClassroomModalProps> = ({ currentUser, onC
               <span className="font-bold text-xs text-gray-400 uppercase tracking-wider">Lớp của bạn ({classrooms.length})</span>
               <button
                 onClick={() => setIsCreating(!isCreating)}
-                className="bg-[#1DB954] hover:bg-[#169C46] text-white px-3 py-1 rounded-full text-xs font-bold flex items-center space-x-1 shadow-sm transition-all"
+                className="bg-primary hover:bg-primary-dark text-white px-3 py-1 rounded-full text-xs font-bold flex items-center space-x-1 shadow-sm transition-all"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Thêm lớp</span>
@@ -309,14 +309,14 @@ export const ClassroomModal: React.FC<ClassroomModalProps> = ({ currentUser, onC
             {/* FORM TẠO LỚP NHANH */}
             {isCreating && (
               <form onSubmit={handleCreateClass} className="bg-emerald-50/60 p-3.5 rounded-2xl border border-emerald-200 space-y-2.5 text-xs animate-in fade-in duration-200">
-                <span className="font-extrabold text-xs text-[#15803D] block">Tạo lớp học mới</span>
+                <span className="font-extrabold text-xs text-primary-dark block">Tạo lớp học mới</span>
                 <input
                   type="text"
                   required
                   placeholder="Tên lớp (VD: 12A1)"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[#1DB954]"
+                  className="w-full px-3 py-1.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-primary"
                 />
                 <div className="grid grid-cols-2 gap-2">
                   <input
@@ -325,14 +325,14 @@ export const ClassroomModal: React.FC<ClassroomModalProps> = ({ currentUser, onC
                     placeholder="Môn (VD: Toán)"
                     value={subject}
                     onChange={(e) => setSubject(e.target.value)}
-                    className="w-full px-3 py-1.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[#1DB954]"
+                    className="w-full px-3 py-1.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-primary"
                   />
                   <input
                     type="text"
                     placeholder="Trường học"
                     value={school}
                     onChange={(e) => setSchool(e.target.value)}
-                    className="w-full px-3 py-1.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[#1DB954]"
+                    className="w-full px-3 py-1.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-primary"
                   />
                 </div>
                 <div className="flex justify-end space-x-2 pt-1">
@@ -345,7 +345,7 @@ export const ClassroomModal: React.FC<ClassroomModalProps> = ({ currentUser, onC
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-1 rounded-lg bg-[#1DB954] hover:bg-[#169C46] text-white font-bold shadow-sm"
+                    className="px-4 py-1 rounded-lg bg-primary hover:bg-primary-dark text-white font-bold shadow-sm"
                   >
                     Tạo ngay
                   </button>
@@ -364,8 +364,8 @@ export const ClassroomModal: React.FC<ClassroomModalProps> = ({ currentUser, onC
                     onClick={() => setSelectedClass(cls)}
                     className={`p-3.5 rounded-2xl border transition-all cursor-pointer relative ${
                       isSelected
-                        ? 'bg-white border-[#1DB954] shadow-md ring-2 ring-[#1DB954]/50'
-                        : 'bg-white border-gray-200 hover:border-gray-300'
+                        ? 'bg-white/70 border-primary shadow-md ring-2 ring-primary/50'
+                        : 'bg-white/60 border-white/70 hover:border-primary/40'
                     }`}
                   >
                     <div className="flex justify-between items-start">
@@ -391,7 +391,7 @@ export const ClassroomModal: React.FC<ClassroomModalProps> = ({ currentUser, onC
                           className="bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-800 font-mono font-bold px-2 py-0.5 rounded-lg flex items-center space-x-1"
                           title="Sao chép mã lớp"
                         >
-                          {copiedCode === cls.class_code ? <Check className="w-3 h-3 text-[#1DB954]" /> : <Copy className="w-3 h-3 text-gray-400" />}
+                          {copiedCode === cls.class_code ? <Check className="w-3 h-3 text-primary" /> : <Copy className="w-3 h-3 text-gray-400" />}
                           <span>{cls.class_code}</span>
                         </button>
 
@@ -422,7 +422,7 @@ export const ClassroomModal: React.FC<ClassroomModalProps> = ({ currentUser, onC
                   <div>
                     <div className="flex items-center space-x-2">
                       <h4 className="font-extrabold text-lg text-gray-900">{selectedClass.name}</h4>
-                      <span className="text-xs bg-emerald-50 text-[#15803D] px-2.5 py-0.5 rounded-full font-bold border border-emerald-200">
+                      <span className="text-xs bg-emerald-50 text-primary-dark px-2.5 py-0.5 rounded-full font-bold border border-emerald-200">
                         {selectedClass.subject}
                       </span>
                     </div>
@@ -436,7 +436,7 @@ export const ClassroomModal: React.FC<ClassroomModalProps> = ({ currentUser, onC
                       onClick={() => setQrModalClass(selectedClass)}
                       className="flex items-center space-x-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow-2xs"
                     >
-                      <QrCode className="w-3.5 h-3.5 text-[#1DB954]" />
+                      <QrCode className="w-3.5 h-3.5 text-primary" />
                       <span>Mã QR lớp</span>
                     </button>
 
@@ -457,7 +457,7 @@ export const ClassroomModal: React.FC<ClassroomModalProps> = ({ currentUser, onC
                 <div className="grid grid-cols-3 gap-2 text-xs">
                   <div className="bg-[#FAFAFA] p-2.5 rounded-2xl border border-gray-100 text-center">
                     <span className="text-[10px] text-gray-400 uppercase font-bold block">Sĩ số thành viên</span>
-                    <span className="text-base font-extrabold text-[#1DB954]">{studentsWithStats.length} HS</span>
+                    <span className="text-base font-extrabold text-primary">{studentsWithStats.length} HS</span>
                   </div>
                   <div className="bg-[#FAFAFA] p-2.5 rounded-2xl border border-gray-100 text-center">
                     <span className="text-[10px] text-gray-400 uppercase font-bold block">Điểm TB toàn lớp</span>
@@ -503,7 +503,7 @@ export const ClassroomModal: React.FC<ClassroomModalProps> = ({ currentUser, onC
                               </span>
                             </td>
                             <td className="py-2.5 px-2 text-right">
-                              <span className="font-extrabold text-xs text-[#1DB954] bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                              <span className="font-extrabold text-xs text-primary bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
                                 {st.avgScore} đ
                               </span>
                             </td>
@@ -528,8 +528,8 @@ export const ClassroomModal: React.FC<ClassroomModalProps> = ({ currentUser, onC
 
         {/* MODAL PHÓNG TO MÃ QR ĐỂ CHIẾU MÁY CHIẾU TẠI LỚP */}
         {qrModalClass && (
-          <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-60 flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl p-6 max-w-sm w-full text-center space-y-4 shadow-2xl relative">
+          <div className="fixed inset-0 yq-overlay z-60 flex items-center justify-center p-4">
+            <div className="glass-panel rounded-3xl p-6 max-w-sm w-full text-center space-y-4 shadow-2xl relative">
               <button
                 onClick={() => setQrModalClass(null)}
                 className="absolute top-4 right-4 w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 font-bold"
@@ -539,15 +539,12 @@ export const ClassroomModal: React.FC<ClassroomModalProps> = ({ currentUser, onC
 
               <div>
                 <h4 className="font-extrabold text-lg text-gray-900">Mã QR Vào Lớp</h4>
-                <p className="text-xs text-[#1DB954] font-bold mt-0.5">{qrModalClass.name} • {qrModalClass.subject}</p>
+                <p className="text-xs text-primary font-bold mt-0.5">{qrModalClass.name} • {qrModalClass.subject}</p>
               </div>
 
-              {/* RENDER QR CODE SVG THUẦN */}
-              <div 
-                className="w-56 h-56 mx-auto p-2 bg-white rounded-2xl border-2 border-gray-100 shadow-md flex items-center justify-center"
-                dangerouslySetInnerHTML={{
-                  __html: generateQrSvg(`https://yuhquiz.id.vn/join/${qrModalClass.class_code}`, 210)
-                }}
+              <QrImage
+                text={`https://yuhquiz.id.vn/join/${qrModalClass.class_code}`}
+                className="w-56 h-56 mx-auto p-2 glass-panel rounded-2xl border-2 border-gray-100 shadow-md object-contain"
               />
 
               <div className="bg-[#FAFAFA] p-3 rounded-2xl border border-gray-200">

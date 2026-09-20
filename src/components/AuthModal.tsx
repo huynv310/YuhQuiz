@@ -4,6 +4,7 @@ import {
   AlertCircle, Phone, User, CheckCircle2, KeyRound, Calendar, School, GraduationCap 
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { signInWithPassword } from '../lib/session';
 
 interface AuthModalProps {
   onClose: () => void;
@@ -102,13 +103,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
       try {
         // Kiểm tra chống trùng lặp SĐT trong database
-        const { data: existingPhone } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('phone', phone.trim())
-          .maybeSingle();
+        const { data: phoneTaken } = await supabase.rpc('phone_taken', { p_phone: phone.trim() });
 
-        if (existingPhone) {
+        if (phoneTaken) {
           throw new Error('Số điện thoại này đã được đăng ký cho một tài khoản khác!');
         }
 
@@ -132,18 +129,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
         if (authError) throw authError;
 
-        if (authData.user) {
-          await supabase.from('profiles').insert({
-            id: authData.user.id,
-            full_name: fullName.trim(),
-            phone: phone.trim(),
-            email: email.trim(),
-            school: school.trim(),
-            dob: dob,
-            role: role,
-            user_code: userCode,
-          });
-        }
+        // Hồ sơ (profiles) được trigger handle_new_user tạo từ metadata phía trên.
+        void authData;
 
         setSignupSuccessMsg(
           `Đăng ký tài khoản ${role === 'teacher' ? 'Giáo viên' : 'Học sinh'} thành công! Hệ thống đã gửi email xác thực tới "${email.trim()}". Vui lòng kiểm tra hộp thư để xác nhận trước khi đăng nhập.`
@@ -157,10 +144,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       // Đăng nhập
       setIsLoading(true);
       try {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password,
-        });
+        const { data, error } = await signInWithPassword(email.trim(), password);
 
         if (error) {
           if (error.message.includes('Email not confirmed')) {
@@ -209,8 +193,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl max-w-lg w-full p-6 md:p-8 shadow-2xl relative max-h-[95vh] overflow-y-auto font-sans text-[#121212]">
+    <div className="fixed inset-0 yq-overlay z-50 flex items-center justify-center p-4">
+      <div className="glass-panel rounded-3xl max-w-lg w-full p-6 md:p-8 shadow-2xl relative max-h-[95vh] overflow-y-auto font-sans text-[#121212]">
         <button
           onClick={onClose}
           className="absolute top-5 right-5 w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 font-bold transition-all"
@@ -220,7 +204,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
         {/* HEADER */}
         <div className="flex items-center space-x-3 mb-5">
-          <div className="w-11 h-11 rounded-2xl bg-[#1DB954] flex items-center justify-center text-white font-extrabold shadow-sm flex-shrink-0">
+          <div className="w-11 h-11 rounded-2xl bg-primary flex items-center justify-center text-white font-extrabold shadow-sm flex-shrink-0">
             {role === 'teacher' ? <ShieldCheck className="w-6 h-6" /> : <GraduationCap className="w-6 h-6" />}
           </div>
           <div>
@@ -244,8 +228,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         {/* BẢNG THÔNG BÁO ĐĂNG KÝ THÀNH CÔNG */}
         {signupSuccessMsg ? (
           <div className="p-5 bg-emerald-50 border border-emerald-200 rounded-2xl text-center space-y-3">
-            <CheckCircle2 className="w-10 h-10 text-[#1DB954] mx-auto" />
-            <h4 className="font-bold text-sm text-[#15803D]">Đăng ký thành công!</h4>
+            <CheckCircle2 className="w-10 h-10 text-primary mx-auto" />
+            <h4 className="font-bold text-sm text-primary-dark">Đăng ký thành công!</h4>
             <p className="text-xs text-gray-600 leading-relaxed">
               {signupSuccessMsg}
             </p>
@@ -255,7 +239,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 setSignupSuccessMsg(null);
                 setIsSignUp(false);
               }}
-              className="w-full bg-[#1DB954] text-white py-2.5 rounded-xl font-bold text-xs shadow-sm hover:bg-[#169C46] transition-all"
+              className="w-full bg-primary text-white py-2.5 rounded-xl font-bold text-xs shadow-sm hover:bg-primary-dark transition-all"
             >
               Chuyển sang Đăng nhập
             </button>
@@ -272,7 +256,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     onClick={() => setRole('student')}
                     className={`py-2.5 px-3 rounded-xl border font-bold flex items-center justify-center space-x-2 transition-all ${
                       role === 'student'
-                        ? 'border-[#1DB954] bg-emerald-50 text-[#15803D] ring-1 ring-[#1DB954]'
+                        ? 'border-primary bg-emerald-50 text-primary-dark ring-1 ring-primary'
                         : 'border-gray-200 text-gray-600 hover:bg-gray-50'
                     }`}
                   >
@@ -284,7 +268,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     onClick={() => setRole('teacher')}
                     className={`py-2.5 px-3 rounded-xl border font-bold flex items-center justify-center space-x-2 transition-all ${
                       role === 'teacher'
-                        ? 'border-[#1DB954] bg-emerald-50 text-[#15803D] ring-1 ring-[#1DB954]'
+                        ? 'border-primary bg-emerald-50 text-primary-dark ring-1 ring-primary'
                         : 'border-gray-200 text-gray-600 hover:bg-gray-50'
                     }`}
                   >
@@ -309,7 +293,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         placeholder="VD: Nguyễn Văn A"
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
-                        className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:border-[#1DB954] focus:bg-white focus:outline-none transition-all"
+                        className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:border-primary focus:bg-white focus:outline-none transition-all"
                       />
                     </div>
                   </div>
@@ -324,7 +308,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         placeholder="VD: 0912345678"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
-                        className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:border-[#1DB954] focus:bg-white focus:outline-none transition-all"
+                        className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:border-primary focus:bg-white focus:outline-none transition-all"
                       />
                     </div>
                   </div>
@@ -340,7 +324,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         required
                         value={dob}
                         onChange={(e) => setDob(e.target.value)}
-                        className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:border-[#1DB954] focus:bg-white focus:outline-none transition-all"
+                        className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:border-primary focus:bg-white focus:outline-none transition-all"
                       />
                     </div>
                   </div>
@@ -355,7 +339,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         placeholder="VD: THPT Chuyên Hà Nội - Amsterdam"
                         value={school}
                         onChange={(e) => setSchool(e.target.value)}
-                        className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:border-[#1DB954] focus:bg-white focus:outline-none transition-all"
+                        className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:border-primary focus:bg-white focus:outline-none transition-all"
                       />
                     </div>
                   </div>
@@ -374,7 +358,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   placeholder="name@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:border-[#1DB954] focus:bg-white focus:outline-none transition-all"
+                  className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:border-primary focus:bg-white focus:outline-none transition-all"
                 />
               </div>
             </div>
@@ -397,7 +381,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   placeholder={isSignUp ? "Tối thiểu 8 ký tự (hoa, thường, số, ký tự đặc biệt)" : "Nhập mật khẩu"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:border-[#1DB954] focus:bg-white focus:outline-none transition-all"
+                  className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:border-primary focus:bg-white focus:outline-none transition-all"
                 />
               </div>
               {isSignUp && password && (
@@ -422,7 +406,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     className={`w-full pl-9 pr-3 py-2 bg-gray-50 border rounded-xl focus:outline-none transition-all ${
                       confirmPassword && password !== confirmPassword
                         ? 'border-rose-300 focus:border-rose-500'
-                        : 'border-gray-200 focus:border-[#1DB954] focus:bg-white'
+                        : 'border-gray-200 focus:border-primary focus:bg-white'
                     }`}
                   />
                 </div>
@@ -435,7 +419,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full mt-2 bg-[#1DB954] hover:bg-[#169C46] active:scale-[0.98] text-white py-3 rounded-xl font-bold text-xs md:text-sm shadow-sm transition-all flex items-center justify-center space-x-2"
+              className="w-full mt-2 bg-primary hover:bg-primary-dark active:scale-[0.98] text-white py-3 rounded-xl font-bold text-xs md:text-sm shadow-sm transition-all flex items-center justify-center space-x-2"
             >
               {isLoading ? (
                 <RefreshCw className="w-4 h-4 animate-spin" />
@@ -490,7 +474,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       setErrorMsg(null);
                       setIsSignUp(false);
                     }}
-                    className="text-[#1DB954] font-bold hover:underline"
+                    className="text-primary font-bold hover:underline"
                   >
                     Đăng nhập
                   </button>
@@ -504,7 +488,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       setErrorMsg(null);
                       setIsSignUp(true);
                     }}
-                    className="text-[#1DB954] font-bold hover:underline"
+                    className="text-primary font-bold hover:underline"
                   >
                     Đăng ký tài khoản mới
                   </button>

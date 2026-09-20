@@ -30,11 +30,7 @@ export const JoinClassModal: React.FC<JoinClassModalProps> = ({
 
     try {
       // 1. Tìm lớp học theo mã lớp (Không join profiles để tránh lỗi schema cache)
-      const { data: cls, error: clsError } = await supabase
-        .from('classrooms')
-        .select('*')
-        .eq('class_code', cleanCode)
-        .maybeSingle();
+      const { data: cls, error: clsError } = await supabase.rpc('find_class_by_code', { p_code: cleanCode });
 
       if (clsError) throw clsError;
       if (!cls) {
@@ -42,15 +38,7 @@ export const JoinClassModal: React.FC<JoinClassModalProps> = ({
       }
 
       // Lấy tên giáo viên nếu có
-      let teacherName = 'Thầy/Cô';
-      if (cls.teacher_id) {
-        const { data: tProf } = await supabase
-          .from('profiles')
-          .select('full_name')
-          .eq('id', cls.teacher_id)
-          .maybeSingle();
-        if (tProf?.full_name) teacherName = tProf.full_name;
-      }
+      const teacherName = cls.teacher_name || 'Thầy/Cô';
 
       // 2. Thêm học sinh vào lớp học
       const studentName = currentUser?.full_name || currentUser?.user_metadata?.full_name || 'Học sinh';
@@ -78,8 +66,8 @@ export const JoinClassModal: React.FC<JoinClassModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 font-sans text-[#121212]">
-      <div className="bg-white rounded-3xl max-w-md w-full p-6 md:p-8 shadow-2xl relative">
+    <div className="fixed inset-0 yq-overlay z-50 flex items-center justify-center p-4 font-sans text-[#121212]">
+      <div className="glass-panel rounded-3xl max-w-md w-full p-6 md:p-8 shadow-2xl relative">
         <button
           onClick={onClose}
           className="absolute top-5 right-5 w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 font-bold transition-all"
@@ -88,7 +76,7 @@ export const JoinClassModal: React.FC<JoinClassModalProps> = ({
         </button>
 
         <div className="text-center mb-6">
-          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-[#1DB954] flex items-center justify-center mx-auto shadow-sm mb-3">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-primary flex items-center justify-center mx-auto shadow-sm mb-3">
             <Users className="w-6 h-6" />
           </div>
           <h3 className="font-extrabold text-lg text-gray-900 leading-tight">
@@ -108,8 +96,8 @@ export const JoinClassModal: React.FC<JoinClassModalProps> = ({
 
         {joinedClass ? (
           <div className="p-5 bg-emerald-50 border border-emerald-200 rounded-2xl text-center space-y-3">
-            <CheckCircle2 className="w-10 h-10 text-[#1DB954] mx-auto" />
-            <h4 className="font-bold text-sm text-[#15803D]">Bạn đã vào lớp thành công!</h4>
+            <CheckCircle2 className="w-10 h-10 text-primary mx-auto" />
+            <h4 className="font-bold text-sm text-primary-dark">Bạn đã vào lớp thành công!</h4>
             <div className="bg-white p-3 rounded-xl border border-emerald-100 text-xs text-left space-y-1">
               <p>Lớp: <b className="text-gray-900">{joinedClass.name}</b></p>
               <p>Môn học: <b className="text-gray-900">{joinedClass.subject}</b></p>
@@ -118,7 +106,7 @@ export const JoinClassModal: React.FC<JoinClassModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="w-full bg-[#1DB954] text-white py-2.5 rounded-xl font-bold text-xs shadow-sm hover:bg-[#169C46] transition-all"
+              className="w-full bg-primary text-white py-2.5 rounded-xl font-bold text-xs shadow-sm hover:bg-primary-dark transition-all"
             >
               Xem đề thi của lớp
             </button>
@@ -136,14 +124,14 @@ export const JoinClassModal: React.FC<JoinClassModalProps> = ({
                 placeholder="VD: 54FPWH"
                 value={code}
                 onChange={(e) => setCode(e.target.value.toUpperCase())}
-                className="w-full text-center tracking-widest font-mono text-xl uppercase font-extrabold px-4 py-3 bg-[#FAFAFA] border-2 border-gray-200 rounded-2xl focus:border-[#1DB954] focus:bg-white focus:outline-none transition-all"
+                className="w-full text-center tracking-widest font-mono text-xl uppercase font-extrabold px-4 py-3 bg-[#FAFAFA] border-2 border-gray-200 rounded-2xl focus:border-primary focus:bg-white focus:outline-none transition-all"
               />
             </div>
 
             <button
               type="submit"
               disabled={isLoading || !code.trim()}
-              className="w-full bg-[#1DB954] hover:bg-[#169C46] active:scale-[0.98] text-white py-3.5 rounded-xl font-bold text-sm shadow-md shadow-emerald-500/20 transition-all flex items-center justify-center space-x-2 disabled:opacity-50"
+              className="w-full bg-primary hover:bg-primary-dark active:scale-[0.98] text-white py-3.5 rounded-xl font-bold text-sm shadow-md shadow-emerald-500/20 transition-all flex items-center justify-center space-x-2 disabled:opacity-50"
             >
               {isLoading ? (
                 <RefreshCw className="w-4 h-4 animate-spin" />

@@ -90,7 +90,7 @@ export function exportGradebookToExcel(
       <![endif]-->
       <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        th { background-color: #1DB954; color: #ffffff; font-weight: bold; font-size: 11pt; text-align: center; vertical-align: middle; border: 1px solid #cccccc; padding: 8px 12px; }
+        th { background-color: #2563EB; color: #ffffff; font-weight: bold; font-size: 11pt; text-align: center; vertical-align: middle; border: 1px solid #cccccc; padding: 8px 12px; }
         td { font-size: 10pt; vertical-align: middle; border: 1px solid #e5e7eb; padding: 6px 10px; }
       </style>
     </head>

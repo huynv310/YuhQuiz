@@ -2,23 +2,25 @@ import { useEffect, useRef, useState } from 'react';
 
 export function useAntiCheat(
   enabled: boolean = true,
-  onCheatingLogged?: (cheatCount: number, totalAwaySecs: number) => void
+  onCheatingLogged?: (cheatCount: number, totalAwaySecs: number) => void,
+  onEvent?: (reason: string, awaySecs: number) => void
 ) {
   const [cheatCount, setCheatCount] = useState<number>(0);
   const [totalAwaySecs, setTotalAwaySecs] = useState<number>(0);
   const [lastWarningReason, setLastWarningReason] = useState<string | null>(null);
 
   const awayStartTime = useRef<number | null>(null);
-  const blurTimer = useRef<NodeJS.Timeout | null>(null);
+  const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastWidth = useRef<number>(window.innerWidth);
   const lastHeight = useRef<number>(window.innerHeight);
   const isRotating = useRef<boolean>(false);
-  const rotationTimer = useRef<NodeJS.Timeout | null>(null);
+  const rotationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const recordViolation = (reason: string, awaySecs: number = 0) => {
     // NẾU TẮT HOẶC ĐÃ NỘP BÀI THÌ TUYỆT ĐỐI KHÔNG GHI NHẬN VI PHẠM
     if (!enabled) return;
 
+    onEvent?.(reason, awaySecs);
     setCheatCount(prev => {
       const next = prev + 1;
       setTotalAwaySecs(currAway => {
@@ -128,6 +130,10 @@ export function useAntiCheat(
 
     // 6. CHẶN PHÍM TẮT TRA CỨU & COPY/PASTE TRÊN MÁY TÍNH
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Cho phép dán/sao chép trong ô nhập đáp án (tránh phạt oan khi gõ đáp án ngắn)
+      const t = e.target as HTMLElement | null;
+      const inEditable = !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
+      if (inEditable && e.ctrlKey && !e.shiftKey && (e.key === 'c' || e.key === 'v')) return;
       if (
         e.key === 'F12' ||
         (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'C' || e.key === 'c')) ||

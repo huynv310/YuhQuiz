@@ -5,18 +5,33 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test": "node tests/test_scoring.js"
+    "test": "node tests/test_scoring.js && node tests/test_dynamic_scoring.js && node tests/test_answer_parser.js && node tests/test_autogen.mjs && node tests/test_bff.mjs",
+    "test:db": "node tests/rls_smoke.mjs && node tests/legacy_migration.mjs",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.api.json"
   },
   "dependencies": {
+    "@gsap/react": "^2.1.2",
+    "@react-three/drei": "^9.122.0",
+    "@react-three/fiber": "^8.18.0",
     "@supabase/supabase-js": "^2.45.0",
-    "@vercel/analytics": "^2.0.1",
+    "@types/three": "^0.186.0",
+    "framer-motion": "^13.4.0",
+    "gsap": "^3.15.0",
+    "localforage": "^1.10.0",
     "lucide-react": "^0.436.0",
+    "pdfjs-dist": "^4.10.38",
+    "qrcode": "^1.5.4",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^7.18.4",
+    "three": "^0.186.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@types/node": "^26.6.2",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",

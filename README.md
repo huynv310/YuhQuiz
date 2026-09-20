@@ -6,174 +6,147 @@
 
 ## 🌟 Giới Thiệu & Điểm Nổi Bật
 
-**YuhQuiz** được thiết kế nhằm giải quyết bài toán chuyển đổi sang **định dạng đề thi tốt nghiệp THPT mới từ năm 2025** của Bộ Giáo dục & Đào tạo. Hệ thống kết hợp phong cách thiết kế **Spotify Light Aesthetic** (nền sáng tối giản, điểm nhấn xanh `#1DB954`, bo góc mượt mà) cùng kiến trúc **Serverless Jamstack** mang lại tốc độ tức thì, độ ổn định cao và chi phí vận hành 0 đồng trên nền tảng miễn phí.
+**YuhQuiz** giải quyết bài toán chuyển đổi sang **định dạng đề thi tốt nghiệp THPT mới từ năm 2025** của Bộ GD&ĐT. Hệ thống dùng kiến trúc **Serverless Jamstack** (React + Vite + Supabase + Vercel), chạy được trên gói miễn phí.
 
-### 🎯 Các Tính Năng Đột Phá
+Điểm thay đổi lớn so với các phiên bản trước:
 
-### 1. Phòng Thi Thí Sinh (Student Exam Room)
-* **Giao diện Split-View linh hoạt:** Chia đôi màn hình trên máy tính (đọc đề PDF bên trái, điền phiếu trắc nghiệm bên phải với thanh kéo tỷ lệ mượt mà).
-* **Công nghệ phóng to PDF thực tế (CSS Transform Scale 70% – 200%):** Phóng to trực tiếp nét chữ, công thức toán học và hình vẽ đồ thị như kính lúp, tương thích cả Trình đọc gốc và Google Docs Viewer.
-* **Bộ điều khiển cỡ chữ trang web an toàn (85% – 120%):** Tích hợp nút `A-` `100%` `A+` trên thanh điều hướng, tự động căn chỉnh tỷ lệ mà không phá vỡ khung lưới (grid layout).
-* **Đột phá Mobile UX (Quick Answer Dock & Question Matrix):**
-  * Đề thi PDF hiển thị trọn vẹn **100% màn hình điện thoại**, không bị che khuất.
-  * Thanh khoanh đáp án nhanh ở sát đáy màn hình (52px): Phím A, B, C, D bản to chạm bằng ngón cái, **tự động chuyển câu tiếp theo** ngay sau khi chọn.
-  * **Phần II Đúng/Sai cảm ứng bản to:** Hai nút bấm `[ ĐÚNG ]` / `[ SAI ]` chuẩn 40px kèm thanh trạng thái 4 ý `A, B, C, D` chống bấm nhầm triệt để.
-  * **Ma trận câu hỏi 1-chạm (`[ ▦ ]`):** Hiển thị toàn bộ tiến độ bài thi (câu đã làm / câu bỏ sót), chạm 1 chạm để chuyển ngay đến câu cần làm.
-* **Hệ thống giám sát chống gian lận thông minh (Anti-Cheat):** Phát hiện chuyển tab, mở thanh bên chia màn hình AI, chặn phím tắt F12, Copy/Paste. **Tự động tắt bỏ 100% cảm biến giám sát ngay khi học sinh nộp bài** để học sinh tự do đối chiếu kết quả.
-* **Lưu bài 2 tầng an toàn (Two-tier Storage):** Lưu tức thời vào `localStorage` (0ms) kết hợp đồng bộ ngầm định kỳ (60s) lên Supabase, giúp hệ thống chịu tải an toàn hàng nghìn học sinh cùng thi mà không nghẽn máy chủ. Tự động thu bài khi hết giờ hoặc khi thí sinh rời phòng.
+* **Bắt buộc đăng nhập:** giáo viên và học sinh đều phải có tài khoản. Phiên đăng nhập giữ bằng **cookie httpOnly** qua lớp BFF (`/api/auth/*`), token không nằm trong `localStorage`.
+* **Đáp án nằm ở server:** bảng `exam_answer_keys` không cho học sinh đọc. Việc chấm, chấm lại và thu bài đều chạy bằng RPC phía Postgres, có kiểm tra quyền (RLS).
+* **Kho bài tập & Luyện tập:** giáo viên cắt câu hỏi từ PDF, dựng đề ngẫu nhiên từ kho; học sinh luyện tập tự do và xem lời giải.
+* **Cứu hộ bài thi khi mất mạng:** xuất file `.yuhquiz` để nộp lại hoặc để giáo viên nhập thay.
 
-### 2. Góc Học Tập Học Sinh (Student Portal)
-* **Phân loại bài tập theo từng Tab lớp:** Học sinh lọc và xem riêng bài tập được giao của từng lớp (`Tất cả các lớp`, `Lớp 12A1`, `Lớp 12A2`...).
-* **Bảng theo dõi điểm số & tiến độ riêng từng lớp:** Tự động tính toán Điểm TB tích lũy và số bài đã nộp riêng cho từng lớp học.
-* **Vào lớp học 1-chạm:** Nhập mã tham gia 6 ký tự hoặc quét mã QR do giáo viên cung cấp.
-* **Vinh danh bảng vàng (Leaderboard):** Bảng xếp hạng Top 20% thí sinh đạt điểm cao nhất của từng kỳ thi.
+### 🎯 Tính Năng Chính
 
-### 3. Trung Tâm Quản Trị Giáo Viên (Teacher Dashboard)
-* **Tạo đề thi tùy biến thang điểm đa môn học:**
-  * Cài đặt sẵn theo chuẩn cấu trúc Bộ GD&ĐT cho các môn: Toán, Vật lí, Hóa học, Sinh học, Lịch sử, Ngoại ngữ...
-  * Tự do tùy biến số câu và số điểm từng phần ($S_1, S_2, S_3$), tự động tính toán điểm từng câu theo công thức chia đều và lũy tiến Đúng/Sai (10% – 25% – 50% – 100%).
-* **Bộ nạp đáp án thông minh (Batch Answer Parser):** Dán nhanh chuỗi đáp án thô (ví dụ: `1A 2B 3C` hoặc bảng text) để hệ thống tự động nhận diện và điền đáp án chuẩn.
-* **Phân quyền đề thi chặt chẽ:** Tùy chọn đề thi `🌐 Công khai` hoặc `🔒 Bài tập lớp` (tự động ẩn với khách vãng lai, chỉ thành viên trong lớp và giáo viên được phép thi).
-* **Quản lý lớp học & thành viên đồng bộ:**
-  * Hiển thị chính xác sĩ số thành viên, số đề đã nộp và điểm trung bình của từng học sinh trong lớp.
-  * Chiếu mã QR lớp học kích thước lớn phục vụ trình chiếu máy chiếu tại lớp.
-  * **Tính năng Giải tán lớp học an toàn:** Xác thực bảo mật kép gõ chữ `"XOA"`, tự động kick toàn bộ thành viên, hủy giao đề và xóa sạch dữ liệu liên quan trên toàn hệ thống.
-* **Công cụ khảo thí & Chấm thi chuyên sâu:**
-  * **Chấm lại bài thi (Regrade):** Chấm lại toàn bộ bài nộp chỉ với 1 click khi giáo viên đính chính đáp án, hoặc chấm lại cho từng học sinh cụ thể.
-  * **Buộc thu bài:** Cho phép giáo viên cưỡng chế thu bài các thí sinh đang làm dở khi đã hết giờ.
-  * **Phân tích phổ điểm hình chuông:** Thống kê độ lệch chuẩn $\sigma$, phương sai, điểm trung vị và vẽ biểu đồ phân phối chuẩn.
-  * **Phân tích câu hỏi ($P_i$):** Thống kê tỷ lệ chọn từng phương án A, B, C, D, phát hiện câu hỏi có độ phân hóa cao hoặc câu bẫy.
-  * **Xuất bảng điểm Excel (.xls):** Tự động định dạng bảng tính, co giãn độ rộng cột tự động và chuẩn font tiếng Việt có dấu.
+### 1. Phòng Thi Thí Sinh
+* **Giao diện Split-View** (đề bên trái, phiếu trả lời bên phải, thanh kéo tỷ lệ) và bố cục riêng cho điện thoại: thanh khoanh đáp án nhanh, tự chuyển câu, nút Đúng/Sai cỡ lớn, ma trận câu hỏi.
+* **Màn hình chuẩn bị thi:** hiển thị tên đề, môn, lớp, giáo viên, thời lượng, hạn nộp; bấm *Bắt đầu* mới vào phòng thi. Quét QR khi chưa đăng nhập sẽ đăng nhập trước rồi vào thẳng màn hình này.
+* **Giám sát chống gian lận:** ghi nhận chuyển tab, mất tiêu điểm, thoát toàn màn hình, phím tắt bị cấm; nhật ký (telemetry) giáo viên xem được khi mở bài nộp. Tự tắt hoàn toàn sau khi nộp bài.
+* **Lưu bài 2 tầng:** `localStorage` tức thì và đồng bộ định kỳ lên Supabase; đồng hồ đếm ngược neo theo mốc thời gian.
+* **Cứu hộ:** nếu nộp lỗi do mất mạng, bài được giữ trong *Lịch sử thi → Bài làm chưa nộp được*; học sinh **Nộp lại** khi có mạng, hoặc **Xuất file** cho giáo viên nhập.
+* **Xem lại bài & lời giải** sau khi nộp: đáp án đã chọn, đáp án đúng, lời giải chi tiết (văn bản, ảnh, PDF).
+
+### 2. Góc Học Tập Học Sinh
+* Vào lớp bằng mã 6 ký tự hoặc quét QR; lọc bài tập theo lớp, xem điểm trung bình và số bài đã nộp từng lớp.
+* **Luyện tập tự do:** lọc theo môn, khối, `#hashtag`, dạng câu; bấm *Kiểm tra* để xem đúng/sai, đáp án và lời giải. API luyện tập không trả đáp án trước khi học sinh kiểm tra.
+* **Bảng xếp hạng** Top 20% từng kỳ thi (chỉ hiện tên và điểm).
+* **Hồ sơ cá nhân** với mã người dùng dạng `HS7K2M9Q` (do server cấp, không sửa được) và tự xóa tài khoản kèm dữ liệu.
+
+### 3. Trung Tâm Quản Trị Giáo Viên
+* **Kho bài tập:** cắt câu hỏi trực tiếp từ PDF (ảnh WebP lưu Storage), phân loại theo môn, khối, `#hashtag`; sửa môn/khối/dạng/đáp án/lời giải; bật hoặc tắt cho phép luyện tập từng câu.
+* **Lời giải chi tiết:** văn bản, dán ảnh (Ctrl+V), đính kèm PDF ≤ 2 MB (tối đa 5 tệp/câu).
+* **Tạo đề:** thủ công (upload PDF, dán đáp án hàng loạt) hoặc **tự sinh ngẫu nhiên** từ kho câu hỏi (tỉ lệ điểm 3:4:3). Mã đề 6 ký tự dạng `T1A2B3`, khối lớp 1–12, tối đa 100 câu/phần, tìm theo tên hoặc mã, nhóm theo môn.
+* **Phân quyền đề:** công khai hoặc bài tập riêng theo lớp, giao đề kèm thời hạn.
+* **Quản lý lớp:** sĩ số, điểm từng học sinh, QR lớp, giải tán lớp.
+* **Chấm thi:** chấm lại một hoặc toàn bộ bài khi sửa đáp án, buộc thu bài, nhập file cứu hộ, xem đề và bài làm cạnh nhau.
+* **Phân tích:** phổ điểm hình chuông, độ lệch chuẩn, trung vị, phân tích từng câu ($P_i$, phương án gây nhiễu).
+* **Xuất Excel (.xls)** bảng điểm.
+
+### 4. Giao diện
+Nền sáng tối giản, điểm nhấn xanh, nền bong bóng 3D (Three.js) ở trang chủ và dashboard. Cảnh 3D chỉ tải sau khi trang hiển thị, chỉ bật trên màn hình ≥ 1024px và tắt khi bật *Giảm chuyển động* của hệ điều hành.
 
 ---
 
-## 🏗️ Kiến Trúc Hệ Thống & Cấu Trúc Dự Án
+## 🏗️ Cấu Trúc Dự Án
 
 ```
 exam-platform/
-├── public/
-│   ├── icon.svg                      # Icon thương hiệu
-│   └── manifest.json                 # Cấu hình PWA Web App
+├── api/                        # Vercel Functions (BFF đăng nhập, cookie httpOnly)
+│   ├── _lib/bff.ts             #   cookie, chống CSRF, giới hạn đăng nhập
+│   ├── auth/{login,logout,refresh,session}.ts
+│   └── ping.ts
+├── public/                     # icon, manifest PWA, ảnh 3D, font 3D
 ├── src/
 │   ├── components/
-│   │   ├── AuthModal.tsx             # Đăng nhập / Đăng ký hợp nhất
-│   │   ├── ClassroomModal.tsx        # Quản lý lớp, thành viên, điểm số & Giải tán lớp
-│   │   ├── CompleteProfileModal.tsx  # Cập nhật thông tin khi đăng nhập Google
-│   │   ├── CreateExamModal.tsx       # Tạo đề thi, upload PDF, tùy biến thang điểm
-│   │   ├── ExamCardSelector.tsx      # Danh sách thẻ chọn đề thi trực quan có nhãn Lớp/Public
-│   │   ├── ItemAnalysisTable.tsx     # Phân tích độ khó câu hỏi (Chỉ số Pi, câu bẫy)
-│   │   ├── JoinClassModal.tsx        # Học sinh nhập mã tham gia lớp
-│   │   ├── LeaderboardModal.tsx      # Bảng xếp hạng Top 20% vinh danh
-│   │   ├── ScoreDistributionChart.tsx# Biểu đồ phổ điểm phân phối chuẩn hình chuông
-│   │   ├── StudentExamRoom.tsx       # Phòng thi học sinh (Split view, Zoom PDF, Quick Dock)
-│   │   ├── StudentPortal.tsx         # Góc học tập thí sinh (Lọc tab theo lớp, điểm TB lớp)
-│   │   └── TeacherDashboard.tsx      # Bảng điều khiển khảo thí giáo viên (Chấm lại, Thu bài)
-│   ├── constants/
-│   │   └── subjectPresets.ts         # Cấu hình số câu, điểm và thời gian chuẩn Bộ GD&ĐT
-│   ├── hooks/
-│   │   ├── useAntiCheat.ts           # Cảm biến chống gian lận (Tự tắt 100% khi nộp bài)
-│   │   ├── useAutoSave.ts            # Lưu bài 2 tầng: LocalStorage 0ms & Sync Server 60s
-│   │   └── useExamTimer.ts           # Đếm ngược neo mốc thời gian thực chống tua giờ
-│   ├── lib/
-│   │   └── supabase.ts               # Kết nối cơ sở dữ liệu Supabase BaaS
-│   ├── types/
-│   │   └── exam.ts                   # Định nghĩa TypeScript Interfaces toàn dự án
-│   ├── utils/
-│   │   ├── answerParser.ts           # Thuật toán tách đáp án dán hàng loạt
-│   │   ├── excelExporter.ts          # Xuất báo cáo bảng điểm Excel tự co giãn cột
-│   │   ├── qrGenerator.ts            # Bộ sinh mã QR thuần chuẩn vector SVG
-│   │   └── scoring.ts                # Công thức chấm điểm Đúng/Sai lũy tiến THPTQG 2025
-│   ├── App.tsx                       # Điều hướng chính, Menu 3 gạch di động & Hero Section
-│   ├── index.css                     # Tailwind CSS & Bộ định kiểu toàn cục
-│   └── main.tsx                      # Điểm khởi chạy React kèm GlobalErrorBoundary chống crash
+│   │   ├── StudentPortal/      # Danh sách đề, màn hình chuẩn bị thi, luyện tập, cứu hộ
+│   │   ├── TeacherDashboard/   # Quản lý đề, kho câu hỏi, tự sinh đề, sửa câu, nhập file cứu hộ
+│   │   ├── StudentExamRoom.tsx # Phòng thi (split view, mobile dock)
+│   │   ├── SnipperModal.tsx    # Cắt câu hỏi từ PDF
+│   │   ├── ClassroomModal.tsx, CreateExamModal.tsx, ProfileView.tsx, SolutionView.tsx ...
+│   │   ├── QrImage.tsx         # QR sinh tại trình duyệt (thư viện qrcode)
+│   │   └── AmbientScene.tsx    # Nền 3D
+│   ├── pages/                  # LandingPage, LandingScene
+│   ├── hooks/                  # useAntiCheat, useAutoSave, useExamTimer
+│   ├── lib/                    # supabase, session (BFF), rescue, telemetry, examId, imageUpload ...
+│   ├── utils/                  # scoring, answerParser, autoGen, excelExporter, hashtags
+│   ├── constants/, types/
+│   └── App.tsx, main.tsx
 ├── supabase/
-│   └── schema.sql                    # Schema PostgreSQL: Bảng, RLS, Storage, Trigger & Stored Procedure
-├── tests/
-│   ├── test_answer_parser.js         # Kiểm thử thuật toán trích xuất đáp án
-│   ├── test_dynamic_scoring.js       # Kiểm thử thuật toán tính điểm linh hoạt theo cấu hình
-│   └── test_scoring.js               # Kiểm thử độ chính xác barem điểm chuẩn THPTQG
-├── package.json & vite.config.ts
-└── tailwind.config.js
+│   ├── schema.sql              # Schema gốc
+│   └── migrations/             # 8 migration (bảo mật, mã đề, kho bài tập, lời giải, mã người dùng ...)
+├── tests/                      # Unit test + test DB (Postgres nhúng)
+├── .github/workflows/          # CI (typecheck, test, build) + keepalive Supabase
+├── DEPLOY.md                   # Hướng dẫn triển khai + smoke test thủ công
+└── vercel.json                 # Rewrites + header bảo mật (CSP, X-Frame-Options ...)
 ```
 
 ---
 
 ## 🧮 Barem Điểm Cấu Trúc Mới THPTQG 2025
 
-Thuật toán trong `scoring.ts` và Stored Procedure `submit_and_grade_exam` chạy độc lập, đồng bộ và tuân thủ tuyệt đối quy định chấm điểm:
+Thuật toán trong `scoring.ts` và RPC `submit_and_grade_exam` đọc thang điểm từ `config` của đề:
 
 1. **Phần I (Trắc nghiệm 4 lựa chọn):**
    $$\text{Điểm mỗi câu} = \frac{\text{Tổng điểm Phần I}}{\text{Số câu Phần I}}$$
-2. **Phần II (Trắc nghiệm Đúng / Sai):**  
-   Mỗi câu gồm 4 lệnh hỏi a, b, c, d. Điểm cơ sở mỗi câu $S_{câu} = \frac{\text{Tổng điểm Phần II}}{\text{Số câu Phần II}}$, điểm đạt được tính theo thang lũy tiến:
+2. **Phần II (Đúng / Sai):**  
+   Mỗi câu gồm 4 lệnh hỏi a, b, c, d. Điểm cơ sở mỗi câu $S_{câu} = \frac{\text{Tổng điểm Phần II}}{\text{Số câu Phần II}}$, điểm đạt được theo thang lũy tiến:
    * Đúng 1 ý: $10\% \times S_{câu}$
    * Đúng 2 ý: $25\% \times S_{câu}$
    * Đúng 3 ý: $50\% \times S_{câu}$
    * Đúng 4 ý: $100\% \times S_{câu}$
 3. **Phần III (Trả lời ngắn):**
    $$\text{Điểm mỗi câu} = \frac{\text{Tổng điểm Phần III}}{\text{Số câu Phần III}}$$
-   *(Tự động chuẩn hóa số âm `-1.5`, số thập phân kiểu Việt Nam `1,5` $\to$ `1.5` và loại bỏ khoảng trắng thừa).*
+   *(Chuẩn hóa số âm, số thập phân kiểu Việt `1,5` $\to$ `1.5`, bỏ khoảng trắng thừa.)*
 
 ---
 
-## 🚀 Hướng Dẫn Cài Đặt & Chạy Thử (Local)
+## 🚀 Chạy Ở Máy Cục Bộ
 
-### 1. Cài đặt thư viện
+Yêu cầu: Node.js 20 trở lên.
+
 ```bash
 cd exam-platform
-npm install
+npm ci
+cp .env.example .env      # điền URL và anon key của Supabase
+npm run dev               # http://localhost:5173
 ```
 
-### 2. Chạy bộ kiểm thử tự động (Unit Tests)
+Biến môi trường (xem `.env.example`):
+
+| Biến | Ý nghĩa |
+|---|---|
+| `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | Kết nối Supabase từ trình duyệt |
+| `VITE_USE_BFF` | `true` khi deploy Vercel kèm `/api/auth/*`; để `false` khi chạy local |
+| `SUPABASE_URL`, `SUPABASE_ANON_KEY` | Chỉ đặt phía server (Vercel), không có tiền tố `VITE_` |
+
+Không dùng `service_role` key ở bất kỳ đâu. Không commit tệp `.env`.
+
+### Kiểm thử
+
 ```bash
-node tests/test_dynamic_scoring.js
-node tests/test_scoring.js
-node tests/test_answer_parser.js
-# Kết quả: Tất cả các kịch bản kiểm thử đạt 100% độ chính xác
+npm run typecheck   # tsc cho app và api
+npm test            # unit test: chấm điểm, parser, tự sinh đề, BFF
+npm run test:db     # RLS, RPC, migration trên Postgres nhúng (PGlite)
+npm run build       # typecheck + vite build
 ```
 
-### 3. Cấu hình biến môi trường
-Tạo tệp `.env` tại thư mục gốc `exam-platform`:
-```env
-VITE_SUPABASE_URL=[https://your-project.supabase.co](https://your-project.supabase.co)
-VITE_SUPABASE_ANON_KEY=your-anon-key
-```
-
-### 4. Khởi chạy máy chủ phát triển
-```bash
-npm run dev
-```
-Truy cập: `http://localhost:5173`
+CI (`.github/workflows/ci.yml`) chạy đủ bốn bước trên mỗi push và pull request.
 
 ---
 
-## 🌐 Triển Khai Miễn Phí Lên Cloud (Supabase + Vercel)
+## 🌐 Triển Khai (Supabase + Vercel)
 
-### Bước A: Thiết lập Cơ sở dữ liệu Supabase
-1. Đăng ký tài khoản tại [https://supabase.com](https://supabase.com) và tạo một Project mới (khuyến nghị chọn Region Singapore).
-2. Vào **SQL Editor** $\to$ **New query** $\to$ Dán toàn bộ nội dung tệp `supabase/schema.sql` $\to$ Bấm **Run**.
-3. Vào **Storage** $\to$ Tạo bucket mới tên `exam-pdfs` và bật **Public bucket**.
-4. Vào **Authentication** $\to$ **URL Configuration**:
-   * **Site URL:** Điền tên miền của bạn (ví dụ: `https://www.yuhquiz.id.vn`).
-   * **Redirect URLs:** Thêm `https://www.yuhquiz.id.vn/**` và `http://localhost:5173/**`.
-5. *(Khuyên dùng)* Vào **Authentication** $\to$ **Providers** $\to$ **Email** $\to$ Tắt **Confirm email** để học sinh tạo tài khoản vào thi được ngay mà không phải chờ thư kích hoạt.
+Xem hướng dẫn đầy đủ, thứ tự chạy migration, danh sách smoke test và xử lý sự cố trong **[DEPLOY.md](DEPLOY.md)**. Tóm tắt:
 
-### Bước B: Triển khai Frontend lên Vercel
-1. Đẩy mã nguồn lên GitHub của bạn:
-   ```bash
-   git add .
-   git commit -m "Deploy YuhQuiz Production"
-   git push origin main
-   ```
-2. Đăng nhập [https://vercel.com](https://vercel.com) $\to$ **Add New...** $\to$ **Project** $\to$ Chọn Repo GitHub `YuhQuiz`.
-3. Trong mục **Environment Variables**, cấu hình 2 biến:
-   * `VITE_SUPABASE_URL`: (Lấy từ Project Settings trên Supabase)
-   * `VITE_SUPABASE_ANON_KEY`: (Lấy từ Project Settings trên Supabase)
-4. Bấm **Deploy**.
-5. Trong phần cài đặt **Deployment Protection** trên Vercel: Chuyển sang **Disabled** để mở công khai cho mọi học sinh truy cập.
-6. Kết nối tên miền tùy chỉnh (Custom Domain):
-   * Thêm tên miền `www.yuhquiz.id.vn` (CNAME trỏ về `cname.vercel-dns.com`).
-   * Thêm tên miền `yuhquiz.id.vn` (A Record trỏ về `76.76.21.21`).
+1. **Supabase:** chạy `supabase/schema.sql`, sau đó lần lượt 8 tệp trong `supabase/migrations/`; bật Email provider; đặt Site URL và Redirect URLs. Với DB đã có dữ liệu, **sao lưu trước** (migration xóa cột `exams.answer_keys` sau khi chép sang `exam_answer_keys`).
+2. **GitHub:** đặt secrets `SUPABASE_URL`, `SUPABASE_ANON_KEY` cho workflow `keepalive.yml` (tránh project free bị tạm dừng).
+3. **Vercel:** import repo, `Root Directory` là gốc repo này, đặt 5 biến môi trường trong bảng trên (`VITE_USE_BFF=true`).
+4. Chạy smoke test ở `DEPLOY.md` mục 4 trên **staging** trước khi lặp lại cho production.
+
+### Giới hạn đã biết
+* Tệp lời giải nằm trong bucket công khai (tên là mã hash, khó đoán nhưng ai có link đều xem được).
+* Câu bật *Cho phép luyện tập* hiện với mọi học sinh đã đăng nhập; câu dùng cho đề thi thật nên tắt tùy chọn này.
+* Vai trò giáo viên do người dùng tự chọn khi đăng ký (chưa có bước duyệt).
+* Các test dùng Postgres nhúng, không thay thế được smoke test trên môi trường thật. Chi tiết xem `DEPLOY.md` mục 6.
 
 ---
 

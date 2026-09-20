@@ -1,0 +1,16 @@
+{
+  "name": "YuhQuiz - Thi Thử TNTHPT",
+  "short_name": "YuhQuiz",
+  "description": "Nền tảng thi thử và khảo thí trực tuyến chuẩn Bộ GD&ĐT 2025",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAFAFA",
+  "theme_color": "#1DB954",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}

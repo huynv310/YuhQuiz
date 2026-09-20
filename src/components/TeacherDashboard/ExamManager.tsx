@@ -1,21 +1,23 @@
 import React, { useState, useEffect } from 'react';
+import { ExamSearchBar, ExamIdChips, SubjectGroups, filterExams } from '../SubjectGroups';
 import { 
   Plus, Users, FileText, AlertTriangle, CheckCircle, 
   Clock, Award, Search, ArrowLeft, RefreshCw, Eye, CheckCircle2, XCircle, 
   Timer, Zap, Brain, Trash2, BarChart3, Code, LogOut, ShieldCheck, User, 
   Layers, ChevronRight, Edit, FileSpreadsheet, Trophy, Sparkles, Filter, 
-  RotateCcw, StopCircle 
+  RotateCcw, StopCircle, Share2, Copy, Link, QrCode, X
 } from 'lucide-react';
-import { supabase } from '../lib/supabase';
-import { Exam, Submission } from '../types/exam';
-import { CreateExamModal } from './CreateExamModal';
-import { ClassroomModal } from './ClassroomModal';
-import { ScoreDistributionChart } from './ScoreDistributionChart';
-import { ItemAnalysisTable } from './ItemAnalysisTable';
-import { LeaderboardModal } from './LeaderboardModal';
-import { exportGradebookToExcel } from '../utils/excelExporter';
-import { SUBJECT_PRESETS } from '../constants/subjectPresets';
-import { calculateDynamicExamScore } from '../utils/scoring';
+import { supabase } from '../../lib/supabase';
+import { Exam, Submission } from '../../types/exam';
+import { CreateExamModal } from '../CreateExamModal';
+import { ClassroomModal } from '../ClassroomModal';
+import { ScoreDistributionChart } from '../ScoreDistributionChart';
+import { ItemAnalysisTable } from '../ItemAnalysisTable';
+import { QrImage } from '../QrImage';
+import { RescueImportModal } from './RescueImportModal';
+import { LeaderboardModal } from '../LeaderboardModal';
+import { exportGradebookToExcel } from '../../utils/excelExporter';
+import { SUBJECT_PRESETS } from '../../constants/subjectPresets';
 
 interface TeacherDashboardProps {
   currentUser?: any;
@@ -25,7 +27,7 @@ interface TeacherDashboardProps {
   onSwitchToStudentView?: () => void;
 }
 
-export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
+export const ExamManager: React.FC<TeacherDashboardProps> = ({
   currentUser,
   onLogout,
   onBackToHome,
@@ -38,14 +40,21 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [isRegradingAll, setIsRegradingAll] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [examQuery, setExamQuery] = useState('');
+  const [examGrade, setExamGrade] = useState<number | 'all'>('all');
+  const [examSubject, setExamSubject] = useState('all');
   
   // Modals
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [examToEdit, setExamToEdit] = useState<Exam | null>(null);
   const [isClassroomModalOpen, setIsClassroomModalOpen] = useState(false);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
+  const [isRescueOpen, setIsRescueOpen] = useState(false);
   const [inspectSubmission, setInspectSubmission] = useState<Submission | null>(null);
   const [inspectTab, setInspectTab] = useState<'visual' | 'raw'>('visual');
+  const [inspectPane, setInspectPane] = useState<'exam' | 'answers'>('answers');
+  const [examToPreview, setExamToPreview] = useState<Exam | null>(null);
+  const [examToShare, setExamToShare] = useState<Exam | null>(null);
 
   // Lọc theo lớp học
   const [classFilter, setClassFilter] = useState<string>('all');
@@ -56,10 +65,31 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
 
   const loadExams = async () => {
     setIsLoading(true);
-    const { data } = await supabase
+    const { data: examRows } = await supabase
       .from('exams')
       .select('*')
       .order('created_at', { ascending: false });
+
+    // Đáp án nằm ở bảng riêng exam_answer_keys (chỉ tác giả đọc được) → gộp lại theo shape cũ
+    let data = examRows;
+    if (examRows && examRows.length > 0) {
+      const { data: keyRows } = await supabase
+        .from('exam_answer_keys')
+        .select('exam_id, part_1_keys, part_2_keys, part_3_keys')
+        .in('exam_id', examRows.map((e: any) => e.id));
+      const keyMap = new Map<string, any>((keyRows || []).map((k: any) => [k.exam_id, k]));
+      data = examRows.map((e: any) => {
+        const k = keyMap.get(e.id);
+        return {
+          ...e,
+          answer_keys: {
+            part_1: k?.part_1_keys || {},
+            part_2: k?.part_2_keys || {},
+            part_3: k?.part_3_keys || {},
+          },
+        };
+      });
+    }
 
     if (data) {
       setExams(data);
@@ -96,58 +126,19 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
 
   useEffect(() => {
     fetchSubmissions();
-
-    if (!selectedExam) return;
-
-    const channel = supabase
-      .channel(`live-exam-${selectedExam.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'submissions',
-          filter: `exam_id=eq.${selectedExam.id}`,
-        },
-        (payload) => {
-          if (payload.eventType === 'INSERT') {
-            setSubmissions(prev => [payload.new as Submission, ...prev]);
-          } else if (payload.eventType === 'UPDATE') {
-            setSubmissions(prev =>
-              prev.map(sub => (sub.id === payload.new.id ? (payload.new as Submission) : sub))
-            );
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    
+    // YuhQuiz v2 Blueprint: Tuyệt đối không dùng Supabase Realtime (WebSocket) 
+    // để tránh quá tải (200 connect limit). Thay bằng Hậu Kiểm.
   }, [selectedExam]);
 
   // TÍNH NĂNG 1: CHẤM LẠI BÀI CỦA 1 HỌC SINH CỤ THỂ
   const handleRegradeSingle = async (sub: Submission) => {
     if (!selectedExam) return;
     try {
-      const studentAnswers = sub.answers || { part_1: {}, part_2: {}, part_3: {} };
-      const { totalScore, scoreDetails } = calculateDynamicExamScore(
-        studentAnswers,
-        selectedExam.answer_keys,
-        selectedExam.config
-      );
-
-      const { error } = await supabase
-        .from('submissions')
-        .update({
-          score: totalScore,
-          score_details: scoreDetails,
-          status: 'submitted',
-          submitted_at: sub.submitted_at || new Date().toISOString(),
-        })
-        .eq('id', sub.id);
-
+      // Chấm trên máy chủ bằng đáp án hiện hành (client không còn quyền UPDATE bảng submissions)
+      const { data, error } = await supabase.rpc('teacher_regrade', { p_exam_id: selectedExam.id, p_submission_id: sub.id });
       if (error) throw error;
+      const totalScore = data?.score;
       alert(`Đã chấm lại thành công cho thí sinh ${sub.student_name}: ${totalScore} điểm!`);
       fetchSubmissions();
     } catch (err: any) {
@@ -168,28 +159,9 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
 
     setIsRegradingAll(true);
     try {
-      let successCount = 0;
-      for (const sub of submissions) {
-        if (sub.answers) {
-          const { totalScore, scoreDetails } = calculateDynamicExamScore(
-            sub.answers,
-            selectedExam.answer_keys,
-            selectedExam.config
-          );
-
-          await supabase
-            .from('submissions')
-            .update({
-              score: totalScore,
-              score_details: scoreDetails,
-              status: 'submitted',
-              submitted_at: sub.submitted_at || new Date().toISOString(),
-            })
-            .eq('id', sub.id);
-
-          successCount++;
-        }
-      }
+      const { data, error } = await supabase.rpc('teacher_regrade', { p_exam_id: selectedExam.id });
+      if (error) throw error;
+      const successCount = data?.count ?? 0;
       alert(`Đã chấm lại thành công cho toàn bộ ${successCount} thí sinh! Toàn bộ điểm số và phổ điểm đã được đồng bộ hóa.`);
       fetchSubmissions();
     } catch (err: any) {
@@ -207,24 +179,9 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
     }
 
     try {
-      const studentAnswers = sub.answers || { part_1: {}, part_2: {}, part_3: {} };
-      const { totalScore, scoreDetails } = calculateDynamicExamScore(
-        studentAnswers,
-        selectedExam.answer_keys,
-        selectedExam.config
-      );
-
-      const { error } = await supabase
-        .from('submissions')
-        .update({
-          score: totalScore,
-          score_details: scoreDetails,
-          status: 'submitted',
-          submitted_at: new Date().toISOString(),
-        })
-        .eq('id', sub.id);
-
+      const { data, error } = await supabase.rpc('teacher_regrade', { p_exam_id: selectedExam.id, p_submission_id: sub.id, p_force_submit: true });
       if (error) throw error;
+      const totalScore = data?.score;
       alert(`Đã thu bài thành công cho thí sinh ${sub.student_name}: ${totalScore} điểm!`);
       fetchSubmissions();
     } catch (err: any) {
@@ -324,38 +281,19 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
   const cleanStr = (s: any) => String(s || '').trim().replace(/\s+/g, '').replace(',', '.').replace(/^\+/, '');
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] text-[#121212] font-sans antialiased pb-12">
+    <div className="flex-1 bg-transparent text-slate-900 font-sans antialiased pb-12 min-h-screen">
       
-      {/* 1. TOP HEADER */}
-      <header className="bg-white border-b border-[#EAEAEA] px-4 md:px-8 py-3 flex flex-wrap items-center justify-between gap-3 shadow-sm sticky top-0 z-30">
-        <div className="flex items-center space-x-3">
-          <button 
-            onClick={onBackToHome}
-            className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-all flex-shrink-0"
-            title="Về trang chủ"
-          >
-            <ArrowLeft className="w-4 h-4 text-gray-700" />
-          </button>
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 rounded-xl bg-[#1DB954] flex items-center justify-center text-white font-extrabold text-xs shadow-sm flex-shrink-0">
-              GV
-            </div>
-            <div>
-              <h1 className="font-extrabold text-sm md:text-base tracking-tight leading-tight">Trung Tâm Quản Trị</h1>
-              <p className="text-[10px] md:text-[11px] text-gray-500 truncate max-w-[160px] md:max-w-xs">
-                {currentUser?.full_name || currentUser?.email || 'Giáo viên'}
-              </p>
-            </div>
-          </div>
-        </div>
+      {/* 1. TOP ACTIONS BAR */}
+      <header className="glass-panel border-b border-slate-200 px-4 md:px-8 py-3 flex items-center justify-between shadow-sm sticky top-0 z-30">
+        <h2 className="font-heading font-extrabold text-lg text-slate-800">Kho Đề Thi</h2>
 
         <div className="flex items-center space-x-2">
           {/* Quản lý Lớp học */}
           <button
             onClick={() => setIsClassroomModalOpen(true)}
-            className="flex items-center space-x-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 px-3.5 py-1.5 md:py-2 rounded-full font-bold text-xs transition-all shadow-xs"
+            className="flex items-center space-x-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 px-3.5 py-1.5 md:py-2 rounded-full font-bold text-xs transition-all shadow-xs"
           >
-            <Users className="w-3.5 h-3.5 text-[#1DB954]" />
+            <Users className="w-3.5 h-3.5 text-blue-600" />
             <span>Quản lý Lớp</span>
           </button>
 
@@ -365,7 +303,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
               setExamToEdit(null);
               setIsCreateModalOpen(true);
             }}
-            className="flex items-center space-x-1.5 bg-[#1DB954] hover:bg-[#169C46] active:scale-95 text-white px-3.5 md:px-4 py-1.5 md:py-2 rounded-full font-bold text-xs shadow-sm transition-all"
+            className="flex items-center space-x-1.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white px-3.5 md:px-4 py-1.5 md:py-2 rounded-full font-bold text-xs shadow-sm shadow-blue-500/20 transition-all"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Tạo đề mới</span>
@@ -374,33 +312,22 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
           {onSwitchToStudentView && (
             <button
               onClick={onSwitchToStudentView}
-              className="hidden lg:flex items-center space-x-1 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-3 py-1.5 rounded-full font-bold text-xs transition-all shadow-xs"
+              className="hidden lg:flex items-center space-x-1 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded-full font-bold text-xs transition-all shadow-xs"
               title="Xem trước với tư cách học sinh"
             >
-              <Eye className="w-3.5 h-3.5 text-[#1DB954]" />
+              <Eye className="w-3.5 h-3.5 text-blue-600" />
               <span>Giao diện HS</span>
-            </button>
-          )}
-
-          {onLogout && (
-            <button
-              onClick={onLogout}
-              className="flex items-center space-x-1 bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-full font-bold text-xs transition-all"
-              title="Đăng xuất"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Thoát</span>
             </button>
           )}
         </div>
       </header>
 
       {/* 2. THANH CHUYỂN TAB MOBILE */}
-      <div className="md:hidden bg-white border-b border-gray-200 px-4 py-2 flex justify-around sticky top-[57px] z-20 shadow-xs">
+      <div className="md:hidden glass-panel border-b border-gray-200 px-4 py-2 flex justify-around sticky top-[57px] z-20 shadow-xs">
         <button
           onClick={() => setMobileView('exams')}
           className={`flex-1 py-1.5 text-xs font-bold rounded-xl text-center transition-all ${
-            mobileView === 'exams' ? 'bg-[#1DB954] text-white shadow-sm' : 'text-gray-600 bg-gray-50'
+            mobileView === 'exams' ? 'bg-primary text-white shadow-sm' : 'text-gray-600 bg-gray-50'
           }`}
         >
           Kỳ thi ({exams.length})
@@ -409,7 +336,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
         <button
           onClick={() => setMobileView('submissions')}
           className={`flex-1 py-1.5 text-xs font-bold rounded-xl text-center transition-all ${
-            mobileView === 'submissions' ? 'bg-[#1DB954] text-white shadow-sm' : 'text-gray-600 bg-gray-50'
+            mobileView === 'submissions' ? 'bg-primary text-white shadow-sm' : 'text-gray-600 bg-gray-50'
           }`}
         >
           Bảng điểm ({submissions.length})
@@ -429,8 +356,10 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
               </button>
             </div>
 
-            <div className="space-y-3 max-h-[75vh] overflow-y-auto pr-1">
-              {exams.map((exam) => {
+            <ExamSearchBar query={examQuery} onQuery={setExamQuery} grade={examGrade} onGrade={setExamGrade} subject={examSubject} onSubject={setExamSubject} />
+
+            <div className="max-h-[75vh] overflow-y-auto pr-1">
+              <SubjectGroups items={filterExams(exams as any[], examQuery, examGrade, examSubject) as Exam[]} empty="Không tìm thấy đề nào." renderItem={(exam) => {
                 const isSelected = selectedExam?.id === exam.id;
                 const preset = SUBJECT_PRESETS[exam.subject];
                 const badgeClass = preset?.badge || 'bg-emerald-50 text-emerald-700 border-emerald-200';
@@ -444,8 +373,8 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                     }}
                     className={`p-4 rounded-2xl border transition-all cursor-pointer relative ${
                       isSelected 
-                        ? 'bg-white border-[#1DB954] shadow-md ring-2 ring-[#1DB954]/50' 
-                        : 'bg-white border-gray-200 hover:border-gray-300'
+                        ? 'bg-white/70 border-primary shadow-md ring-2 ring-primary/50' 
+                        : 'bg-white/60 border-white/70 hover:border-primary/40'
                     }`}
                   >
                     <div className="flex justify-between items-start">
@@ -453,6 +382,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                         <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full border whitespace-nowrap flex-shrink-0 ${badgeClass}`}>
                           {exam.subject}
                         </span>
+                        <ExamIdChips exam={exam as any} />
                         {exam.is_private && (
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200 whitespace-nowrap flex-shrink-0">
                             Lớp riêng
@@ -470,12 +400,25 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            onPreviewExam(exam.id);
+                            setExamToPreview(exam);
                           }}
-                          className="text-[#1DB954] font-semibold hover:underline flex items-center space-x-1"
+                          className="text-primary font-semibold hover:underline flex items-center space-x-1"
+                          title="Xem trước đề thi"
                         >
                           <Eye className="w-3.5 h-3.5" />
-                          <span>Thi thử</span>
+                          <span>Xem đề</span>
+                        </button>
+                        
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setExamToShare(exam);
+                          }}
+                          className="text-blue-600 font-semibold hover:underline flex items-center space-x-1"
+                          title="Chia sẻ đường dẫn & QR"
+                        >
+                          <Share2 className="w-3.5 h-3.5" />
+                          <span>Chia sẻ</span>
                         </button>
 
                         <button
@@ -503,12 +446,12 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                     </div>
                   </div>
                 );
-              })}
+              }} />
             </div>
           </div>
 
           {/* CỘT PHẢI: BẢNG GIÁM SÁT REALTIME & PHÂN TÍCH */}
-          <div className={`col-span-1 md:col-span-8 bg-white border border-gray-200 rounded-3xl p-4 md:p-6 shadow-sm flex flex-col min-h-[550px] ${
+          <div className={`col-span-1 md:col-span-8 glass-panel rounded-3xl p-4 md:p-6 shadow-sm flex flex-col min-h-[550px] ${
             mobileView === 'submissions' ? 'block' : 'hidden md:block'
           }`}>
             {selectedExam ? (
@@ -540,8 +483,16 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                     </button>
 
                     <button
+                      onClick={() => setIsRescueOpen(true)}
+                      className="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 px-3 py-1.5 rounded-full font-bold text-xs transition-all shadow-xs"
+                      title="Nhập file .yuhquiz của học sinh mất mạng"
+                    >
+                      <span>Nhập file cứu hộ</span>
+                    </button>
+
+                    <button
                       onClick={() => exportGradebookToExcel(selectedExam.title, filteredSubs, classFilter)}
-                      className="bg-emerald-50 hover:bg-emerald-100 text-[#15803D] border border-emerald-200 px-3 py-1.5 rounded-full font-bold text-xs flex items-center space-x-1 transition-all shadow-xs"
+                      className="bg-emerald-50 hover:bg-emerald-100 text-primary-dark border border-emerald-200 px-3 py-1.5 rounded-full font-bold text-xs flex items-center space-x-1 transition-all shadow-xs"
                       title="Tải bảng điểm Excel (.xls tự co giãn cột)"
                     >
                       <FileSpreadsheet className="w-3.5 h-3.5" />
@@ -565,7 +516,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                     <button
                       onClick={() => setActiveTab('table')}
                       className={`px-3 py-1.5 rounded-xl font-bold transition-all ${
-                        activeTab === 'table' ? 'bg-[#1DB954] text-white shadow-xs' : 'text-gray-600 bg-gray-50 hover:bg-gray-100'
+                        activeTab === 'table' ? 'bg-primary text-white shadow-xs' : 'text-gray-600 bg-gray-50 hover:bg-gray-100'
                       }`}
                     >
                       Danh sách bài nộp ({filteredSubs.length})
@@ -574,7 +525,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                     <button
                       onClick={() => setActiveTab('distribution')}
                       className={`px-3 py-1.5 rounded-xl font-bold transition-all ${
-                        activeTab === 'distribution' ? 'bg-[#1DB954] text-white shadow-xs' : 'text-gray-600 bg-gray-50 hover:bg-gray-100'
+                        activeTab === 'distribution' ? 'bg-primary text-white shadow-xs' : 'text-gray-600 bg-gray-50 hover:bg-gray-100'
                       }`}
                     >
                       Phổ điểm hình chuông
@@ -583,7 +534,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                     <button
                       onClick={() => setActiveTab('item_analysis')}
                       className={`px-3 py-1.5 rounded-xl font-bold transition-all ${
-                        activeTab === 'item_analysis' ? 'bg-[#1DB954] text-white shadow-xs' : 'text-gray-600 bg-gray-50 hover:bg-gray-100'
+                        activeTab === 'item_analysis' ? 'bg-primary text-white shadow-xs' : 'text-gray-600 bg-gray-50 hover:bg-gray-100'
                       }`}
                     >
                       Phân tích câu hỏi (Pᵢ)
@@ -595,7 +546,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                       <select
                         value={classFilter}
                         onChange={(e) => setClassFilter(e.target.value)}
-                        className="text-xs bg-gray-50 border border-gray-200 rounded-full px-2.5 py-1 font-bold text-gray-700 focus:outline-none focus:border-[#1DB954]"
+                        className="text-xs bg-gray-50 border border-gray-200 rounded-full px-2.5 py-1 font-bold text-gray-700 focus:outline-none focus:border-primary"
                       >
                         <option value="all">Tất cả các lớp</option>
                         {uniqueClasses.map(cls => (
@@ -611,7 +562,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                         placeholder="Tìm học sinh..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-8 pr-3 py-1 text-xs bg-gray-50 border border-gray-200 rounded-full focus:outline-none focus:border-[#1DB954]"
+                        className="w-full pl-8 pr-3 py-1 text-xs bg-gray-50 border border-gray-200 rounded-full focus:outline-none focus:border-primary"
                       />
                     </div>
                   </div>
@@ -678,7 +629,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                                       <span className="text-gray-400 font-medium">0 lần</span>
                                     )}
                                   </td>
-                                  <td className="py-3 px-3 text-right font-extrabold text-sm text-[#1DB954]">
+                                  <td className="py-3 px-3 text-right font-extrabold text-sm text-primary">
                                     {sub.score !== null ? `${sub.score} đ` : '--'}
                                   </td>
                                   <td className="py-3 px-3 text-center">
@@ -689,7 +640,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                                         className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2.5 py-1 rounded-full font-bold text-xs transition-all flex items-center space-x-1"
                                         title="Soát chi tiết bài thi"
                                       >
-                                        <Eye className="w-3 h-3 text-[#1DB954]" />
+                                        <Eye className="w-3 h-3 text-primary" />
                                         <span>Soát bài</span>
                                       </button>
 
@@ -757,6 +708,10 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
         />
       )}
 
+      {isRescueOpen && selectedExam && (
+        <RescueImportModal exam={selectedExam} onClose={() => setIsRescueOpen(false)} onDone={fetchSubmissions} />
+      )}
+
       {isLeaderboardOpen && selectedExam && (
         <LeaderboardModal
           exam={selectedExam}
@@ -767,8 +722,8 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
 
       {/* MODAL SOI BÀI TRỰC QUAN v11 */}
       {inspectSubmission && selectedExam && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-4xl w-full p-6 max-h-[90vh] flex flex-col shadow-2xl">
+        <div className="fixed inset-0 yq-overlay z-50 flex items-center justify-center p-4">
+          <div className="glass-panel rounded-3xl w-[96vw] max-w-[1600px] h-[92vh] p-5 flex flex-col shadow-2xl">
             
             <div className="flex justify-between items-start pb-4 border-b border-gray-100">
               <div>
@@ -784,9 +739,9 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
               </div>
 
               <div className="flex items-center space-x-3">
-                <div className="bg-[#E7F7ED] border border-[#A7E6BE] px-4 py-1.5 rounded-2xl text-center">
+                <div className="bg-blue-50 border border-blue-200 px-4 py-1.5 rounded-2xl text-center">
                   <span className="text-[10px] uppercase font-bold text-gray-500 block">Tổng điểm</span>
-                  <span className="text-xl font-extrabold text-[#1DB954]">{inspectSubmission.score ?? '--'}</span>
+                  <span className="text-xl font-extrabold text-primary">{inspectSubmission.score ?? '--'}</span>
                   <span className="text-xs text-gray-500"> / 10.0</span>
                 </div>
                 <button 
@@ -798,6 +753,32 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
               </div>
             </div>
 
+            {/* CHIA ĐÔI: TRÁI = ĐỀ THI, PHẢI = BÀI LÀM CỦA HỌC SINH */}
+            <div className="lg:hidden flex gap-2 mt-3">
+              <button onClick={() => setInspectPane('exam')} className={`btn flex-1 ${inspectPane === 'exam' ? 'btn-primary' : 'btn-secondary'}`}>Đề thi</button>
+              <button onClick={() => setInspectPane('answers')} className={`btn flex-1 ${inspectPane === 'answers' ? 'btn-primary' : 'btn-secondary'}`}>Bài làm</button>
+            </div>
+            <div className="flex-1 min-h-0 flex gap-4 mt-3">
+              <section aria-label="Đề thi" className={`${inspectPane === 'exam' ? 'flex' : 'hidden'} lg:flex flex-col flex-1 min-w-0 rounded-2xl overflow-hidden border border-gray-200 bg-[#525659]`}>
+                <div className="px-3 py-2 bg-gray-100 text-xs font-bold text-gray-600 border-b border-gray-200">Đề thi · {selectedExam.title}</div>
+                {(selectedExam as any).config?.question_images?.length ? (
+                  <div className="flex-1 overflow-auto p-2 space-y-2">
+                    {(selectedExam as any).config.question_images.map((url: string, i: number) => (
+                      <div key={url + i} className="bg-white rounded-lg p-2">
+                        <p className="text-xs font-bold text-slate-500 mb-1">Câu {i + 1}</p>
+                        <img src={url} alt={`Câu ${i + 1}`} loading="lazy" className="w-full h-auto" />
+                      </div>
+                    ))}
+                  </div>
+                ) : selectedExam.pdf_url ? (
+                  <iframe title="Đề thi PDF" className="flex-1 w-full border-0 bg-white"
+                          src={`https://docs.google.com/viewer?url=${encodeURIComponent(selectedExam.pdf_url)}&embedded=true`} />
+                ) : (
+                  <div className="flex-1 grid place-items-center text-sm text-white/80 p-6 text-center">Đề này chưa có file PDF hoặc ảnh câu hỏi.</div>
+                )}
+              </section>
+
+              <div className={`${inspectPane === 'answers' ? 'flex' : 'hidden'} lg:flex flex-col flex-1 min-w-0 min-h-0`}>
             {/* THANH ĐÁNH GIÁ NĂNG LỰC */}
             <div className="grid grid-cols-3 gap-3 my-4">
               <div className="bg-[#FAFAFA] border border-gray-200 p-3 rounded-2xl flex items-center space-x-3">
@@ -838,7 +819,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
               <button
                 onClick={() => setInspectTab('visual')}
                 className={`pb-2 border-b-2 flex items-center space-x-1.5 transition-all ${
-                  inspectTab === 'visual' ? 'border-[#1DB954] text-[#1DB954]' : 'border-transparent text-gray-400 hover:text-gray-600'
+                  inspectTab === 'visual' ? 'border-primary text-primary' : 'border-transparent text-gray-400 hover:text-gray-600'
                 }`}
               >
                 <BarChart3 className="w-4 h-4" />
@@ -847,7 +828,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
               <button
                 onClick={() => setInspectTab('raw')}
                 className={`pb-2 border-b-2 flex items-center space-x-1.5 transition-all ${
-                  inspectTab === 'raw' ? 'border-[#1DB954] text-[#1DB954]' : 'border-transparent text-gray-400 hover:text-gray-600'
+                  inspectTab === 'raw' ? 'border-primary text-primary' : 'border-transparent text-gray-400 hover:text-gray-600'
                 }`}
               >
                 <Code className="w-4 h-4" />
@@ -887,7 +868,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                           const speed = getSpeedEvaluation(timeSec);
 
                           return (
-                            <div key={qIdx} className="bg-white p-3 rounded-xl border border-gray-200 flex items-center justify-between">
+                            <div key={qIdx} className="glass-panel p-3 rounded-xl flex items-center justify-between">
                               <div className="space-y-1">
                                 <div className="flex items-center space-x-2">
                                   <span className="font-bold text-gray-800">Câu {qIdx}:</span>
@@ -937,10 +918,10 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                           const correctCount = (inspectSubmission.score_details as any)?.part_2?.[qIdx]?.correct_count || 0;
 
                           return (
-                            <div key={qIdx} className="bg-white p-4 rounded-2xl border border-gray-200">
+                            <div key={qIdx} className="glass-panel p-4 rounded-2xl">
                               <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-100">
                                 <span className="font-bold text-sm text-gray-800">Câu {qIdx}</span>
-                                <span className="text-xs font-bold text-[#1DB954]">
+                                <span className="text-xs font-bold text-primary">
                                   Đạt: {qScore}đ ({correctCount}/4 ý đúng)
                                 </span>
                               </div>
@@ -970,7 +951,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
 
                                       <div className="flex items-center space-x-3 text-right">
                                         <span className="text-[11px] text-gray-700">
-                                          ĐS: <b className="text-[#1DB954]">{key === true ? 'Đúng' : key === false ? 'Sai' : '--'}</b>
+                                          ĐS: <b className="text-primary">{key === true ? 'Đúng' : key === false ? 'Sai' : '--'}</b>
                                         </span>
                                         {timeSec && (
                                           <span className="text-[10px] font-mono text-gray-400 bg-white px-1.5 py-0.5 rounded border">
@@ -1006,7 +987,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                           const speed = getSpeedEvaluation(timeSec);
 
                           return (
-                            <div key={qIdx} className="bg-white p-3 rounded-xl border border-gray-200 flex items-center justify-between">
+                            <div key={qIdx} className="glass-panel p-3 rounded-xl flex items-center justify-between">
                               <div className="space-y-1">
                                 <div className="flex items-center space-x-2">
                                   <span className="font-bold text-gray-800">Câu {qIdx}:</span>
@@ -1018,7 +999,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                                   </span>
                                 </div>
                                 <div className="text-[11px] text-gray-500">
-                                  Đáp số đúng: <span className="font-bold font-mono text-[#1DB954]">{key || '--'}</span>
+                                  Đáp số đúng: <span className="font-bold font-mono text-primary">{key || '--'}</span>
                                 </div>
                               </div>
 
@@ -1042,7 +1023,95 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                 </div>
               )}
             </div>
+              </div>
+            </div>
 
+          </div>
+        </div>
+      )}
+      
+      {/* EXAM PREVIEW MODAL */}
+      {examToPreview && (
+        <div className="fixed inset-0 z-50 yq-overlay flex items-center justify-center p-4">
+          <div className="glass-panel w-full max-w-5xl h-[90vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden">
+            <div className="px-6 py-4 border-b border-white/60 flex items-center justify-between bg-white/40">
+              <div>
+                <h3 className="font-extrabold text-lg text-gray-900 leading-tight">Xem trước đề: {examToPreview.title}</h3>
+                <p className="text-xs text-gray-500 mt-1">Giao diện xem trước nội dung đề thi dành cho giáo viên.</p>
+              </div>
+              <button
+                onClick={() => setExamToPreview(null)}
+                className="w-8 h-8 rounded-full bg-gray-200 hover:bg-rose-100 hover:text-rose-600 flex items-center justify-center transition-all"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            
+            <div className="flex-1 flex overflow-hidden bg-[#525659] relative">
+              {examToPreview.pdf_url ? (
+                <object
+                  data={`${examToPreview.pdf_url}#view=FitH&toolbar=0`}
+                  type="application/pdf"
+                  className="w-full h-full"
+                >
+                  <div className="flex flex-col items-center justify-center h-full text-white">
+                    <p>Trình duyệt không hỗ trợ xem PDF trực tiếp.</p>
+                    <a href={examToPreview.pdf_url} target="_blank" rel="noreferrer" className="mt-4 px-4 py-2 bg-primary text-white rounded-full font-bold">
+                      Tải PDF xuống
+                    </a>
+                  </div>
+                </object>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full text-white">
+                  Không tìm thấy tệp PDF của kỳ thi này.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SHARE MODAL */}
+      {examToShare && (
+        <div className="fixed inset-0 z-50 yq-overlay flex items-center justify-center p-4">
+          <div className="glass-panel w-full max-w-md rounded-3xl shadow-2xl overflow-hidden p-6 text-center">
+            <h3 className="font-extrabold text-xl text-gray-900 mb-1">Chia sẻ Kỳ thi</h3>
+            <p className="text-sm text-gray-500 mb-6">Mời học sinh tham gia làm bài thi <b>{examToShare.title}</b></p>
+            {(examToShare as any).short_id && (
+              <p className="text-center mb-4 text-xs text-gray-500">Mã đề: <b className="font-mono text-lg tracking-widest text-gray-900 select-all">{(examToShare as any).short_id}</b></p>
+            )}
+            
+            <div className="flex justify-center mb-6">
+              <div className="p-2 bg-white rounded-xl shadow-sm border border-gray-100">
+                <QrImage
+                  text={`${window.location.origin}/?examId=${(examToShare as any).short_id || examToShare.id}`}
+                  className="w-40 h-40 object-contain"
+                />
+              </div>
+            </div>
+
+            <div className="bg-gray-50 p-3 rounded-2xl flex items-center justify-between border border-gray-200 mb-6">
+              <span className="text-xs font-mono text-gray-600 truncate mr-2 select-all">
+                {`${window.location.origin}/?examId=${(examToShare as any).short_id || examToShare.id}`}
+              </span>
+              <button 
+                onClick={() => {
+                  navigator.clipboard.writeText(`${window.location.origin}/?examId=${(examToShare as any).short_id || examToShare.id}`);
+                  alert('Đã copy đường dẫn!');
+                }}
+                className="p-2 rounded-xl bg-white hover:bg-gray-100 text-primary shadow-sm border border-gray-200 transition-all"
+                title="Copy đường dẫn"
+              >
+                <Copy className="w-4 h-4" />
+              </button>
+            </div>
+
+            <button
+              onClick={() => setExamToShare(null)}
+              className="w-full py-3 bg-gray-900 text-white rounded-2xl font-bold hover:bg-gray-800 transition-all"
+            >
+              Đóng
+            </button>
           </div>
         </div>
       )}

@@ -39,14 +39,12 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({ user
     setIsLoading(true);
     try {
       // Chống trùng SĐT
-      const { data: existingPhone } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('phone', phone.trim())
-        .neq('id', user.id)
-        .maybeSingle();
+      const { data: phoneTaken } = await supabase.rpc('phone_taken', {
+        p_phone: phone.trim(),
+        p_exclude: user.id,
+      });
 
-      if (existingPhone) {
+      if (phoneTaken) {
         throw new Error('Số điện thoại này đã được đăng ký bởi tài khoản khác!');
       }
 
@@ -78,10 +76,10 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({ user
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl max-w-md w-full p-6 md:p-8 shadow-2xl relative font-sans text-[#121212]">
+    <div className="fixed inset-0 yq-overlay z-50 flex items-center justify-center p-4">
+      <div className="glass-panel rounded-3xl max-w-md w-full p-6 md:p-8 shadow-2xl relative font-sans text-[#121212]">
         <div className="text-center mb-5">
-          <div className="w-12 h-12 rounded-2xl bg-[#1DB954] flex items-center justify-center text-white font-extrabold mx-auto shadow-sm mb-3">
+          <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center text-white font-extrabold mx-auto shadow-sm mb-3">
             <Check className="w-7 h-7" />
           </div>
           <h3 className="font-extrabold text-lg text-gray-900 leading-tight">
@@ -108,7 +106,7 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({ user
                 onClick={() => setRole('student')}
                 className={`py-2.5 px-3 rounded-xl border font-bold flex items-center justify-center space-x-2 transition-all ${
                   role === 'student'
-                    ? 'border-[#1DB954] bg-emerald-50 text-[#15803D] ring-1 ring-[#1DB954]'
+                    ? 'border-primary bg-emerald-50 text-primary-dark ring-1 ring-primary'
                     : 'border-gray-200 text-gray-600 hover:bg-gray-50'
                 }`}
               >
@@ -120,7 +118,7 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({ user
                 onClick={() => setRole('teacher')}
                 className={`py-2.5 px-3 rounded-xl border font-bold flex items-center justify-center space-x-2 transition-all ${
                   role === 'teacher'
-                    ? 'border-[#1DB954] bg-emerald-50 text-[#15803D] ring-1 ring-[#1DB954]'
+                    ? 'border-primary bg-emerald-50 text-primary-dark ring-1 ring-primary'
                     : 'border-gray-200 text-gray-600 hover:bg-gray-50'
                 }`}
               >
@@ -138,7 +136,7 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({ user
               placeholder="VD: Nguyễn Văn A"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:border-[#1DB954] focus:bg-white focus:outline-none transition-all"
+              className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:border-primary focus:bg-white focus:outline-none transition-all"
             />
           </div>
 
@@ -152,7 +150,7 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({ user
                 placeholder="VD: 0912345678"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:border-[#1DB954] focus:bg-white focus:outline-none transition-all"
+                className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:border-primary focus:bg-white focus:outline-none transition-all"
               />
             </div>
           </div>
@@ -165,7 +163,7 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({ user
                 required
                 value={dob}
                 onChange={(e) => setDob(e.target.value)}
-                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:border-[#1DB954] focus:bg-white focus:outline-none transition-all text-xs"
+                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:border-primary focus:bg-white focus:outline-none transition-all text-xs"
               />
             </div>
 
@@ -177,7 +175,7 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({ user
                 placeholder="VD: THPT Chuyên"
                 value={school}
                 onChange={(e) => setSchool(e.target.value)}
-                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:border-[#1DB954] focus:bg-white focus:outline-none transition-all text-xs"
+                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:border-primary focus:bg-white focus:outline-none transition-all text-xs"
               />
             </div>
           </div>
@@ -185,7 +183,7 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({ user
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full mt-3 bg-[#1DB954] hover:bg-[#169C46] active:scale-[0.98] text-white py-3 rounded-xl font-bold text-sm shadow-sm transition-all flex items-center justify-center space-x-2"
+            className="w-full mt-3 bg-primary hover:bg-primary-dark active:scale-[0.98] text-white py-3 rounded-xl font-bold text-sm shadow-sm transition-all flex items-center justify-center space-x-2"
           >
             {isLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <span>Xác nhận & Bắt đầu</span>}
           </button>

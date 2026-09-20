@@ -107,7 +107,9 @@ export const SUBJECT_PRESETS: Record<string, SubjectPreset> = {
 
 // Giới hạn trần tối đa câu hỏi để chống spam và cạn kiệt bộ nhớ
 export const MAX_QUESTION_LIMITS = {
-  P1_MAX: 60, // Tối đa 60 câu trắc nghiệm đơn
-  P2_MAX: 10, // Tối đa 10 câu đúng/sai (mỗi câu 4 ý)
-  P3_MAX: 20, // Tối đa 20 câu trả lời ngắn
+  P1_MAX: 100, // Tối đa 100 câu mỗi phần (trùng ràng buộc DB)
+  P2_MAX: 100,
+  P3_MAX: 100,
 };
+
+export const GRADES = Array.from({ length: 12 }, (_, i) => i + 1);

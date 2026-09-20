@@ -18,10 +18,9 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ exam, submis
     if (exam?.id && submissions.length === 0) {
       setIsLoading(true);
       supabase
-        .from('submissions')
+        .from('public_leaderboard')
         .select('*')
         .eq('exam_id', exam.id)
-        .eq('status', 'submitted')
         .order('score', { ascending: false })
         .then(({ data }) => {
           if (data) setSubList(data);
@@ -55,8 +54,8 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ exam, submis
   const topStudents = sorted.slice(0, topCount);
 
   return (
-    <div className="fixed inset-0 bg-black/65 backdrop-blur-sm z-50 flex items-center justify-center p-4 font-sans text-[#121212]">
-      <div className="bg-white rounded-3xl max-w-2xl w-full p-6 max-h-[90vh] flex flex-col shadow-2xl relative">
+    <div className="fixed inset-0 yq-overlay z-50 flex items-center justify-center p-4 font-sans text-[#121212]">
+      <div className="glass-panel rounded-3xl max-w-2xl w-full p-6 max-h-[90vh] flex flex-col shadow-2xl relative">
         <button
           onClick={onClose}
           className="absolute top-5 right-5 w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 font-bold transition-all"
@@ -88,7 +87,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ exam, submis
         <div className="flex-1 overflow-y-auto mt-4 space-y-2.5 pr-1">
           {isLoading ? (
             <div className="h-48 flex flex-col items-center justify-center text-gray-400 text-xs space-y-2">
-              <RefreshCw className="w-6 h-6 animate-spin text-[#1DB954]" />
+              <RefreshCw className="w-6 h-6 animate-spin text-primary" />
               <p>Đang tải bảng xếp hạng...</p>
             </div>
           ) : topStudents.length === 0 ? (
@@ -105,7 +104,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ exam, submis
                 </span>
               );
 
-              let itemBg = 'bg-white border-gray-100';
+              let itemBg = 'bg-white/60 border-white/70';
               if (rank === 1) {
                 rankBadge = <span className="text-xl">🥇</span>;
                 itemBg = 'bg-amber-50/50 border-amber-200 ring-1 ring-amber-300';
@@ -139,7 +138,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ exam, submis
                   </div>
 
                   <div className="text-right space-y-0.5">
-                    <div className="text-base font-extrabold text-[#1DB954]">
+                    <div className="text-base font-extrabold text-primary">
                       {sub.score} <span className="text-xs font-normal text-gray-400">/ 10đ</span>
                     </div>
                     {sub.cheat_count === 0 ? (

@@ -6,10 +6,125 @@
   html, body {
     overflow-x: hidden;
     max-width: 100vw;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
   body {
-    background-color: #FAFAFA;
-    color: #121212;
-    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: #F8FAFC;
+    color: #1E293B;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Be Vietnam Pro', sans-serif;
   }
 }
+
+/* Custom Scrollbar for PDF pane */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+/* ===== Design system chung (Minimalism/Swiss · xanh #2563EB) ===== */
+@layer components {
+  .card { @apply glass-panel rounded-2xl; }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold
+           transition-colors duration-200 cursor-pointer select-none
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2;
+  }
+  .btn-lg { @apply px-6 py-3 text-base; }
+  .btn-primary { @apply bg-primary text-white hover:bg-primary-dark; }
+  .btn-secondary { @apply bg-surface text-foreground border border-border hover:bg-muted; }
+  .btn-ghost { @apply text-mutedForeground hover:bg-muted hover:text-foreground; }
+  .btn-danger { @apply bg-destructive text-white hover:bg-red-700; }
+  .chip { @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border; }
+  .chip-primary { @apply bg-primary-light text-primary-dark border-blue-200; }
+  .chip-muted { @apply bg-muted text-mutedForeground border-border; }
+  .field {
+    @apply w-full px-3 py-2 rounded-xl border border-border bg-surface text-sm
+           focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary;
+  }
+  .tab { @apply px-4 py-2 rounded-xl text-sm font-semibold text-mutedForeground hover:bg-muted transition-colors cursor-pointer; }
+  .tab-active { @apply bg-primary text-white hover:bg-primary; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
+
+/* ===== Liquid glass (kiểu iOS 26): trong hơn, blur nhẹ, bão hòa cao, viền sáng mảnh ===== */
+body {
+  background: linear-gradient(160deg, #EEF3FB 0%, #F6F4FB 55%, #FBF3EF 100%);
+  background-attachment: fixed;
+}
+.ambient-bg { z-index: -1; }
+#root { position: relative; z-index: 1; }
+
+@layer components {
+  .glass-panel, .glass-bar {
+    --mx: 50%; --my: 0%;
+    background:
+      radial-gradient(360px circle at var(--mx) var(--my), rgba(255,255,255,.35), transparent 65%),
+      rgba(255,255,255,.58);
+    -webkit-backdrop-filter: blur(18px) saturate(1.7);
+    backdrop-filter: blur(18px) saturate(1.7);
+    border: 1px solid rgba(255,255,255,.55);
+    box-shadow:
+      0 10px 30px rgba(31,41,80,.07),
+      inset 0 1px 0 rgba(255,255,255,.85),
+      inset 0 -1px 0 rgba(255,255,255,.25);
+  }
+  .glass-bar { border-radius: 0; border-width: 0 0 1px 0; box-shadow: 0 1px 0 rgba(15,23,42,.05), inset 0 -1px 0 rgba(255,255,255,.4); background: rgba(255,255,255,.5); }
+  .yq-overlay {
+    background: rgba(20,28,50,.22);
+    -webkit-backdrop-filter: blur(3px);
+    backdrop-filter: blur(3px);
+    animation: yq-fade .18s ease-out;
+  }
+  .yq-overlay > .glass-panel { animation: yq-pop .28s cubic-bezier(.2,.9,.25,1.1); background-color: rgba(255,255,255,.76); }
+}
+/* ===== Popup thống nhất: ô nhập trong suốt nhẹ, cuộn mượt, bottom-sheet trên điện thoại ===== */
+.yq-overlay { overscroll-behavior: contain; }
+.yq-overlay > .glass-panel { overscroll-behavior: contain; scrollbar-gutter: stable; }
+.yq-overlay input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=range]),
+.yq-overlay select, .yq-overlay textarea {
+  background-color: rgba(255,255,255,.72);
+  border-color: rgba(15,23,42,.12);
+  border-radius: .75rem;
+  color: #0f172a;
+}
+.yq-overlay input:focus, .yq-overlay select:focus, .yq-overlay textarea:focus {
+  outline: none; border-color: #2563EB; box-shadow: 0 0 0 3px rgba(37,99,235,.18);
+}
+.yq-overlay h3 { letter-spacing: -.01em; }
+.yq-overlay > .glass-panel > button[aria-label="Đóng"], .yq-overlay button:has(> svg.lucide-x) {
+  border-radius: 9999px; padding: .25rem; transition: background-color .15s;
+}
+.yq-overlay button:has(> svg.lucide-x):hover { background-color: rgba(15,23,42,.08); }
+select { color-scheme: light; }
+@media (max-width: 640px) {
+  .yq-overlay { align-items: flex-end !important; padding: 0 !important; }
+  .yq-overlay > .glass-panel {
+    width: 100% !important; max-width: 100% !important; border-radius: 1.5rem 1.5rem 0 0 !important;
+    max-height: 92vh !important; animation: yq-sheet .3s cubic-bezier(.2,.9,.25,1);
+  }
+}
+@keyframes yq-sheet { from { transform: translateY(40px); opacity: 0 } to { transform: none; opacity: 1 } }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass-panel, .glass-bar { background: rgba(255,255,255,.97); }
+  .yq-overlay { background: rgba(15,23,42,.55); }
+}
+@keyframes yq-fade { from { opacity: 0 } to { opacity: 1 } }
+@keyframes yq-pop { from { opacity: 0; transform: translateY(12px) scale(.97) } to { opacity: 1; transform: none } }

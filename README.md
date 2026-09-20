@@ -72,7 +72,7 @@ exam-platform/
 │   └── App.tsx, main.tsx
 ├── supabase/
 │   ├── schema.sql              # Schema gốc
-│   └── migrations/             # 8 migration (bảo mật, mã đề, kho bài tập, lời giải, mã người dùng ...)
+│   └── migrations/             # 9 migration (bảo mật, mã đề, kho bài tập, lời giải, mã người dùng ...)
 ├── tests/                      # Unit test + test DB (Postgres nhúng)
 ├── .github/workflows/          # CI (typecheck, test, build) + keepalive Supabase
 ├── DEPLOY.md                   # Hướng dẫn triển khai + smoke test thủ công
@@ -137,7 +137,7 @@ CI (`.github/workflows/ci.yml`) chạy đủ bốn bước trên mỗi push và 
 
 Xem hướng dẫn đầy đủ, thứ tự chạy migration, danh sách smoke test và xử lý sự cố trong **[DEPLOY.md](DEPLOY.md)**. Tóm tắt:
 
-1. **Supabase:** chạy `supabase/schema.sql`, sau đó lần lượt 8 tệp trong `supabase/migrations/`; bật Email provider; đặt Site URL và Redirect URLs. Với DB đã có dữ liệu, **sao lưu trước** (migration xóa cột `exams.answer_keys` sau khi chép sang `exam_answer_keys`).
+1. **Supabase:** chạy `supabase/schema.sql`, sau đó lần lượt 9 tệp trong `supabase/migrations/`; bật Email provider; đặt Site URL và Redirect URLs. Với DB đã có dữ liệu, **sao lưu trước** (migration xóa cột `exams.answer_keys` sau khi chép sang `exam_answer_keys`).
 2. **GitHub:** đặt secrets `SUPABASE_URL`, `SUPABASE_ANON_KEY` cho workflow `keepalive.yml` (tránh project free bị tạm dừng).
 3. **Vercel:** import repo, `Root Directory` là gốc repo này, đặt 5 biến môi trường trong bảng trên (`VITE_USE_BFF=true`).
 4. Chạy smoke test ở `DEPLOY.md` mục 4 trên **staging** trước khi lặp lại cho production.

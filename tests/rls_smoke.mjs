@@ -20,7 +20,7 @@ create role anon nologin; create role authenticated nologin; create role service
 `);
 await db.exec(`grant usage on schema public,auth,storage to anon,authenticated,service_role; alter default privileges in schema public grant all on tables to anon,authenticated,service_role; alter default privileges in schema public grant all on functions to anon,authenticated,service_role; alter default privileges in schema public grant all on sequences to anon,authenticated,service_role;`);
 await db.exec('grant all on all tables in schema storage to anon,authenticated,service_role;');
-for (const f of ['schema.sql','migrations/20260919_security_hardening.sql','migrations/20260920_exam_ids_grade_limits.sql','migrations/20260921_question_bank_subject_grade.sql','migrations/20260922_solution_attachments.sql','migrations/20260923_practice_solutions.sql','migrations/20260924_user_codes.sql','migrations/20260925_data_cleanup_account_delete.sql','migrations/20260926_linter_hardening.sql']) {
+for (const f of ['schema.sql','migrations/20260919_security_hardening.sql','migrations/20260920_exam_ids_grade_limits.sql','migrations/20260921_question_bank_subject_grade.sql','migrations/20260922_solution_attachments.sql','migrations/20260923_practice_solutions.sql','migrations/20260924_user_codes.sql','migrations/20260925_data_cleanup_account_delete.sql','migrations/20260926_linter_hardening.sql','migrations/20260927_legacy_cleanup.sql']) {
   try { await db.exec(fs.readFileSync(new URL(f,root),'utf8')); console.log('OK',f); }
   catch(e){ console.log('FAIL',f,e.message, e.position||''); break; }
 }

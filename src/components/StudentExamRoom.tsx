@@ -172,7 +172,7 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
       if (subData) {
         if (subData.status === 'submitted') {
           setIsSubmitted(true);
-          setIsMobileSheetOpen(true);
+          if (!isReview) setIsMobileSheetOpen(true);
           removeRescue(sessionToken);
           const { data: keys } = await supabase.rpc('get_answer_keys_after_submit', { p_exam_id: examId });
           setResult({
@@ -862,6 +862,59 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
             </div>
           </div>
         )}
+
+        {/* XEM LẠI BÀI TRÊN MOBILE: THANH ĐÁY CHỈ ĐỌC (GIỐNG THANH LÀM BÀI NHƯNG KHÔNG SỬA ĐƯỢC) */}
+        {isReview && isSubmitted && (() => {
+          const q = currentQMeta.subIndex;
+          const sd = result?.score_details;
+          const ak = result?.answer_keys;
+          const tf = (b: any) => (b === true ? 'Đ' : b === false ? 'S' : '-');
+          const ok = (v: any) => (v ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-rose-100 text-rose-800 border-rose-300');
+          return (
+            <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-gray-200 px-3 py-2 shadow-2xl">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center space-x-1 flex-shrink-0">
+                  <button type="button" onClick={() => setActiveMobileQuestion(prev => Math.max(1, prev - 1))} disabled={activeMobileQuestion <= 1}
+                    className="w-8 h-8 rounded-xl bg-gray-100 flex items-center justify-center text-gray-700 disabled:opacity-30" title="Câu trước"><ChevronLeft className="w-4 h-4" /></button>
+                  <div onClick={() => setIsMobileGridOpen(true)} className="px-2.5 py-1 rounded-xl bg-emerald-50 border border-emerald-200 text-center cursor-pointer">
+                    <span className="text-[10px] text-primary-dark block font-extrabold uppercase -mb-0.5">{currentQMeta.partTitle}</span>
+                    <span className="text-xs font-black text-gray-900">Câu {q}</span>
+                  </div>
+                  <button type="button" onClick={() => setActiveMobileQuestion(prev => Math.min(totalQuestions, prev + 1))} disabled={activeMobileQuestion >= totalQuestions}
+                    className="w-8 h-8 rounded-xl bg-gray-100 flex items-center justify-center text-gray-700 disabled:opacity-30" title="Câu tiếp"><ChevronRight className="w-4 h-4" /></button>
+                </div>
+
+                <div className="flex-1 flex items-center justify-center min-w-0 text-[11px] font-bold">
+                  {currentQMeta.part === 'part_1' && (
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-1 rounded-lg border ${ok(sd?.part_1?.[q]?.is_correct)}`}>Bạn chọn: {answers?.part_1?.[q] || '-'}</span>
+                      <span className="px-2 py-1 rounded-lg border bg-gray-50 border-gray-200 text-gray-700">ĐA: {ak?.part_1?.[q] ?? '-'}</span>
+                    </div>
+                  )}
+                  {currentQMeta.part === 'part_2' && (
+                    <div className="flex items-center gap-1">
+                      {(['a', 'b', 'c', 'd'] as const).map((sub) => (
+                        <span key={sub} className={`px-1.5 py-0.5 rounded-lg border leading-tight text-center ${ok(sd?.part_2?.[q]?.details?.[sub])}`}>
+                          <span className="block text-[10px]">{sub.toUpperCase()}: {tf(answers?.part_2?.[q]?.[sub])}</span>
+                          <span className="block text-[9px] opacity-75">ĐA {tf(ak?.part_2?.[q]?.[sub])}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {currentQMeta.part === 'part_3' && (
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-1 rounded-lg border font-mono ${ok(sd?.part_3?.[q]?.is_correct)}`}>Bạn: {answers?.part_3?.[q] || '-'}</span>
+                      <span className="px-2 py-1 rounded-lg border font-mono bg-gray-50 border-gray-200 text-gray-700">ĐA: {ak?.part_3?.[q] ?? '-'}</span>
+                    </div>
+                  )}
+                </div>
+
+                <button type="button" onClick={() => setIsMobileSheetOpen(true)}
+                  className="h-9 px-2.5 rounded-xl bg-primary text-white text-[11px] font-bold flex-shrink-0" title="Xem phiếu chi tiết và lời giải">Chi tiết</button>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* MODAL MA TRẬN TẤT CẢ CÂU HỎI TRÊN MOBILE (BẤM LÀ NHẢY NGAY ĐẾN CÂU ĐÓ) */}
         {isMobileGridOpen && (

@@ -140,7 +140,19 @@ export default function App() {
     setMode('exam_prep');
   };
 
-  const handleStartExam = (examId: string, studentName: string, className: string, school: string) => {
+  const handleStartExam = (examId: string, studentName: string, className: string, school: string, fresh = false) => {
+    if (fresh) {
+      // Làm lại từ đầu: bỏ phiên + bản nháp cũ để phòng thi cấp phiên mới (khóa trùng với StudentExamRoom)
+      try {
+        const key = `session_${String(examId).trim()}_${String(studentName || 'HocSinh').trim()}_${String(className || '12A').trim()}`;
+        const old = localStorage.getItem(key);
+        if (old) {
+          localStorage.removeItem(`draft_${examId}_${old}`);
+          localStorage.removeItem(`start_time_${examId}_${old}`);
+        }
+        localStorage.removeItem(key);
+      } catch { /* noop */ }
+    }
     setActiveExam({ examId, studentName, className, school });
     setMode('exam_room');
   };
@@ -193,9 +205,9 @@ export default function App() {
         currentUser={currentUser}
         profile={userProfile}
         onBack={() => { clearPendingExam(); setPrepKey(null); setMode('student_portal'); }}
-        onStart={(examId, className) => {
+        onStart={(examId, className, fresh) => {
           clearPendingExam();
-          handleStartExam(examId, userProfile?.full_name || currentUser.email?.split('@')[0] || 'Học sinh', className, userProfile?.school || 'THPT');
+          handleStartExam(examId, userProfile?.full_name || currentUser.email?.split('@')[0] || 'Học sinh', className, userProfile?.school || 'THPT', fresh);
         }}
       />
     );

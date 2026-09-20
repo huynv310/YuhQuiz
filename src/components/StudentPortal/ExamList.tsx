@@ -3,7 +3,7 @@ import {
   BookOpen, Users, Clock, Award, Trophy, TrendingUp, 
   Calendar, CheckCircle2, ArrowRight, Plus, RefreshCw, LogOut, 
   GraduationCap, School, ShieldCheck, Eye, Sparkles, Filter, 
-  Layers, CheckCircle, Download } from 'lucide-react';
+  Layers, CheckCircle, Download, RotateCcw } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Exam, Submission } from '../../types/exam';
 import { JoinClassModal } from '../JoinClassModal';
@@ -149,19 +149,12 @@ export const ExamList: React.FC<StudentPortalProps> = ({
     loadStudentData();
   }, [currentUser]);
 
-  // VÀO THI NGAY KHÔNG CẦN POPUP RƯỜM RÀ (GIỐNG NGUYÊN BẢN CHẾ ĐỘ KHÁCH)
-  /** Làm lại: nếu phiên lưu trong máy đã nộp rồi thì bỏ để hệ thống cấp phiên mới; còn dở thì giữ nguyên để làm tiếp. */
-  const handleRetakeExam = (ex: any) => {
+  /** Xem lại: chỉ đọc bài đã nộp, không tạo lượt làm mới. */
+  const handleReviewOne = (ex: any, sub: any) => {
     const sName = currentUser?.full_name || currentUser?.email?.split('@')[0] || 'Học sinh';
-    let cName = '12A';
-    if (ex.assignedClassNames?.length > 0) cName = ex.assignedClassNames[0];
-    else if (joinedClasses.length > 0) cName = joinedClasses[0].name;
-    try {
-      const key = `session_${String(ex.id).trim()}_${sName.trim()}_${cName.trim()}`;
-      const tok = localStorage.getItem(key);
-      if (tok && submissions.some(s => s.session_token === tok && s.status === 'submitted')) localStorage.removeItem(key);
-    } catch { /* noop */ }
-    handleLaunchExam(ex);
+    const cName = ex.assignedClassNames?.[0] || joinedClasses[0]?.name || '12A';
+    const school = currentUser?.school || currentUser?.user_metadata?.school || 'THPT';
+    onReviewExam?.(ex.id, sub?.student_name || sName, sub?.class_name || cName, school, sub?.id);
   };
 
   const handleLaunchExam = (ex: any) => {
@@ -396,14 +389,24 @@ export const ExamList: React.FC<StudentPortalProps> = ({
                               <span className="text-xs font-extrabold text-primary bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200">
                                 Điểm: {subRecord.score}đ
                               </span>
+                              {onReviewExam && (
+                                <button
+                                  onClick={() => handleReviewOne(ex, subRecord)}
+                                  className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3.5 py-1.5 rounded-full text-xs font-bold flex items-center space-x-1"
+                                  title="Chỉ xem bài đã nộp và đáp án, không làm lại"
+                                >
+                                  <Eye className="w-3.5 h-3.5" /><span>Xem lại</span>
+                                </button>
+                              )}
                               {ex.allow_multiple_attempts === false ? (
-                                <span className="text-xs font-bold text-slate-400 px-2">Đã nộp</span>
+                                <span className="text-xs font-bold text-slate-400 px-1">Chỉ làm 1 lần</span>
                               ) : (
                                 <button
-                                  onClick={() => handleRetakeExam(ex)}
-                                  className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3.5 py-1.5 rounded-full text-xs font-bold"
+                                  onClick={() => handleLaunchExam(ex)}
+                                  className="bg-primary hover:bg-primary-dark text-white px-3.5 py-1.5 rounded-full text-xs font-bold flex items-center space-x-1"
+                                  title="Làm lại bài từ đầu (tính thêm một lượt làm mới)"
                                 >
-                                  Làm lại
+                                  <RotateCcw className="w-3.5 h-3.5" /><span>Làm lại</span>
                                 </button>
                               )}
                             </div>

@@ -9,7 +9,7 @@ interface Props {
   currentUser: any;
   profile: any;
   onBack: () => void;
-  onStart: (examId: string, className: string) => void;
+  onStart: (examId: string, className: string, fresh?: boolean) => void;
 }
 
 const fmt = (iso?: string | null) => (iso ? new Date(iso).toLocaleString('vi-VN', { dateStyle: 'medium', timeStyle: 'short' }) : null);
@@ -146,7 +146,7 @@ export const ExamPrepScreen: React.FC<Props> = ({ examKey, currentUser, profile,
           </div>
           <button
             disabled={!canStart}
-            onClick={() => onStart(exam.id, classNames[0] || 'Lớp chung')}
+            onClick={() => onStart(exam.id, classNames[0] || 'Lớp chung', !!done)}
             className="btn btn-primary btn-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Play className="w-4 h-4" /> {done ? 'Làm lại' : 'Bắt đầu làm bài'}

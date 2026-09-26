@@ -265,6 +265,31 @@ export const ClassroomModal: React.FC<ClassroomModalProps> = ({ currentUser, onC
     }
   };
 
+  // TÍNH NĂNG MỚI: KICK RIÊNG 1 HỌC SINH RA KHỎI LỚP (giữ nguyên bài làm/điểm của học sinh đó)
+  const [kickingId, setKickingId] = useState<string | null>(null);
+  const handleKickStudent = async (membershipId: string, studentId: string, displayName: string) => {
+    if (!selectedClass) return;
+    if (!confirm(`Kick học sinh "${displayName}" ra khỏi lớp "${selectedClass.name}"?\nCác bài đã nộp của em vẫn được giữ nguyên, nhưng em sẽ không còn nhận đề mới của lớp này.`)) {
+      return;
+    }
+    setKickingId(membershipId);
+    try {
+      const { error } = await supabase
+        .from('class_memberships')
+        .delete()
+        .eq('class_id', selectedClass.id)
+        .eq('student_id', studentId);
+      if (error) throw error;
+
+      setStudentsWithStats(prev => prev.filter(st => st.id !== membershipId));
+      setClassrooms(prev => prev.map(c => (c.id === selectedClass.id ? { ...c, memberCount: Math.max(0, (c.memberCount || 1) - 1) } : c)));
+    } catch (err: any) {
+      alert('Không thể kick học sinh: ' + err.message);
+    } finally {
+      setKickingId(null);
+    }
+  };
+
   const handleCopyCode = (code: string) => {
     navigator.clipboard.writeText(code);
     setCopiedCode(code);
@@ -489,6 +514,7 @@ export const ClassroomModal: React.FC<ClassroomModalProps> = ({ currentUser, onC
                           <th className="py-2.5 px-2 text-center">Số đề đã nộp</th>
                           <th className="py-2.5 px-2 text-right">Điểm TB lớp</th>
                           <th className="py-2.5 px-2 text-right">Ngày vào lớp</th>
+                          <th className="py-2.5 px-2 text-center">Thao tác</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-50">
@@ -509,6 +535,17 @@ export const ClassroomModal: React.FC<ClassroomModalProps> = ({ currentUser, onC
                             </td>
                             <td className="py-2.5 px-2 text-right text-gray-400 text-[11px]">
                               {new Date(st.joined_at).toLocaleDateString('vi-VN')}
+                            </td>
+                            <td className="py-2.5 px-2 text-center">
+                              <button
+                                onClick={() => handleKickStudent(st.id, st.student_id, st.displayName)}
+                                disabled={kickingId === st.id}
+                                title="Kick học sinh này khỏi lớp"
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-all disabled:opacity-50"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                                {kickingId === st.id ? '...' : 'Kick'}
+                              </button>
                             </td>
                           </tr>
                         ))}

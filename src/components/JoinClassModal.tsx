@@ -71,13 +71,10 @@ export const JoinClassModal: React.FC<JoinClassModalProps> = ({
     doJoin(code);
   };
 
-  const handleScanned = (rawText: string) => {
+  const handleScanned = (code: string) => {
     setIsScanning(false);
-    // Mã QR chứa link .../join/<mã> hoặc chỉ mã trần; lấy đoạn cuối cùng gồm 6-8 ký tự chữ/số.
-    const match = rawText.match(/([A-Za-z0-9]{6,8})\/?$/);
-    const extracted = (match ? match[1] : rawText).toUpperCase();
-    setCode(extracted);
-    doJoin(extracted);
+    setCode(code);
+    doJoin(code);
   };
 
   return (

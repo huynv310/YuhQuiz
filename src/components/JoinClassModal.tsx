@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { X, Users, ArrowRight, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
+import { X, Users, ArrowRight, CheckCircle2, AlertCircle, RefreshCw, Camera } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { QrScannerModal } from './QrScannerModal';
 
 interface JoinClassModalProps {
   currentUser: any;
@@ -19,10 +20,10 @@ export const JoinClassModal: React.FC<JoinClassModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [joinedClass, setJoinedClass] = useState<any | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
 
-  const handleJoin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const cleanCode = code.trim().toUpperCase();
+  const doJoin = async (rawCode: string) => {
+    const cleanCode = rawCode.trim().toUpperCase();
     if (!cleanCode) return;
 
     setIsLoading(true);
@@ -63,6 +64,20 @@ export const JoinClassModal: React.FC<JoinClassModalProps> = ({
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleJoin = (e: React.FormEvent) => {
+    e.preventDefault();
+    doJoin(code);
+  };
+
+  const handleScanned = (rawText: string) => {
+    setIsScanning(false);
+    // Mã QR chứa link .../join/<mã> hoặc chỉ mã trần; lấy đoạn cuối cùng gồm 6-8 ký tự chữ/số.
+    const match = rawText.match(/([A-Za-z0-9]{6,8})\/?$/);
+    const extracted = (match ? match[1] : rawText).toUpperCase();
+    setCode(extracted);
+    doJoin(extracted);
   };
 
   return (
@@ -142,9 +157,23 @@ export const JoinClassModal: React.FC<JoinClassModalProps> = ({
                 </>
               )}
             </button>
+
+            <button
+              type="button"
+              onClick={() => setIsScanning(true)}
+              disabled={isLoading}
+              className="w-full border-2 border-gray-200 hover:border-primary text-gray-700 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center space-x-2 disabled:opacity-50"
+            >
+              <Camera className="w-4 h-4" />
+              <span>Quét mã QR bằng camera</span>
+            </button>
           </form>
         )}
       </div>
+
+      {isScanning && (
+        <QrScannerModal onClose={() => setIsScanning(false)} onDetect={handleScanned} />
+      )}
     </div>
   );
 };

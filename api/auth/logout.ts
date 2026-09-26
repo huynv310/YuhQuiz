@@ -1,9 +1,10 @@
-import { Req, Res, guard, supabaseServer, clearRefreshCookie, readRefreshCookie } from '../_lib/bff';
+import { Req, Res, guard, supabaseServer, clearRefreshCookie, clearSessionStartCookie, readRefreshCookie } from '../_lib/bff';
 
 export default async function handler(req: Req, res: Res) {
   if (!guard(req, res)) return;
   const token = readRefreshCookie(req);
   clearRefreshCookie(req, res);
+  clearSessionStartCookie(req, res);
   if (token) {
     // Thu hồi phiên phía Supabase (best-effort): nạp phiên vào client tạm rồi signOut chính phiên đó.
     // Không cần service-role key: signOut dùng access token của chính phiên.

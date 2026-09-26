@@ -1,4 +1,4 @@
-import { Req, Res, guard, supabaseServer, setRefreshCookie, publicSession } from '../_lib/bff';
+import { Req, Res, guard, supabaseServer, setRefreshCookie, setSessionStartCookie, publicSession } from '../_lib/bff';
 
 /**
  * Nhận nuôi phiên từ luồng OAuth (Google): trình duyệt vừa đổi code lấy session,
@@ -14,6 +14,7 @@ export default async function handler(req: Req, res: Res) {
     const { data, error } = await supabaseServer().auth.refreshSession({ refresh_token });
     if (error || !data.session) return res.status(401).json({ error: 'Refresh token không hợp lệ' });
     setRefreshCookie(req, res, data.session.refresh_token);
+    setSessionStartCookie(req, res);
     return res.status(200).json(publicSession(data.session, data.user));
   } catch (e: any) {
     return res.status(500).json({ error: e?.message || 'Lỗi máy chủ' });

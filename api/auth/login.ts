@@ -1,4 +1,4 @@
-import { Req, Res, guard, supabaseServer, setRefreshCookie, publicSession, rateKeys, rateLimitWait, rateLimitFail, rateLimitReset } from '../_lib/bff';
+import { Req, Res, guard, supabaseServer, setRefreshCookie, setSessionStartCookie, publicSession, rateKeys, rateLimitWait, rateLimitFail, rateLimitReset } from '../_lib/bff';
 
 export default async function handler(req: Req, res: Res) {
   if (!guard(req, res)) return;
@@ -21,6 +21,7 @@ export default async function handler(req: Req, res: Res) {
     }
     await rateLimitReset(sb, keys);
     setRefreshCookie(req, res, data.session.refresh_token);
+    setSessionStartCookie(req, res);
     return res.status(200).json(publicSession(data.session, data.user));
   } catch (e: any) {
     return res.status(500).json({ error: e?.message || 'Lỗi máy chủ' });

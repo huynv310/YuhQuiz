@@ -21,11 +21,18 @@ function call(handler, { method = 'POST', headers = {}, body } = {}) {
   globalThis.__sb = { calls: [], rl: globalThis.__rl ||= new Map(), rpcDown: globalThis.__rpcDown };
   const res = { code: 200, headers: {}, body: undefined,
     status(c) { this.code = c; return this; }, json(b) { this.body = b; },
-    setHeader(k, v) { this.headers[k.toLowerCase()] = v; }, end() {} };
+    setHeader(k, v) { this.headers[k.toLowerCase()] = v; },
+    getHeader(k) { return this.headers[k.toLowerCase()]; },
+    end() {} };
   const req = { method, headers: { host: 'app.example.com', 'x-forwarded-proto': 'https', 'x-requested-with': 'yuhquiz', origin: 'https://app.example.com', ...headers }, body };
   return handler(req, res).then(() => ({ res, calls: globalThis.__sb.calls }));
 }
 const good = { email: 'a@b.c', password: 'good' };
+// Set-Cookie có thể là 1 chuỗi hoặc mảng nhiều cookie (yq_rt + yq_iat) — lấy đúng cookie theo tiền tố.
+const pickCookie = (setCookie, prefix) => {
+  const arr = Array.isArray(setCookie) ? setCookie : (setCookie ? [setCookie] : []);
+  return arr.find(c => c.startsWith(prefix));
+};
 
 // --- guard / CSRF ---
 assert.equal((await call(H.login, { method: 'GET', body: good })).res.code, 405);
@@ -38,9 +45,11 @@ assert.equal(noOrigin.res.code, 200, 'không có Origin (same-origin fetch cũ) 
 // --- login ---
 const ok = await call(H.login, { body: good });
 assert.equal(ok.res.code, 200);
-const cookie = ok.res.headers['set-cookie'];
+const cookie = pickCookie(ok.res.headers['set-cookie'], 'yq_rt=');
 assert.match(cookie, /^yq_rt=RT1/); assert.match(cookie, /HttpOnly/); assert.match(cookie, /SameSite=Strict/);
 assert.match(cookie, /Secure/); assert.match(cookie, /Path=\/api\/auth/);
+const iatCookie = pickCookie(ok.res.headers['set-cookie'], 'yq_iat=');
+assert.match(iatCookie, /Max-Age=259200/, 'yq_iat giới hạn tuyệt đối 72h (259200s)');
 assert.ok(!JSON.stringify(ok.res.body).includes('RT1'), 'refresh token KHÔNG được xuất hiện trong body');
 assert.equal(ok.res.body.access_token, 'AT1');
 assert.equal(ok.res.headers['cache-control'], 'no-store');
@@ -49,19 +58,22 @@ assert.equal(bad.res.code, 401); assert.equal(bad.res.headers['set-cookie'], und
 assert.equal((await call(H.login, { body: { email: 'a@b.c' } })).res.code, 400);
 assert.equal((await call(H.login, { body: { email: 123, password: {} } })).res.code, 400);
 const local = await call(H.login, { headers: { host: 'localhost:3000', 'x-forwarded-proto': '', origin: 'http://localhost:3000' }, body: good });
-assert.ok(!/Secure/.test(local.res.headers['set-cookie']), 'localhost http: không đặt Secure (nếu đặt, cookie không lưu được)');
+assert.ok(!/Secure/.test(pickCookie(local.res.headers['set-cookie'], 'yq_rt=')), 'localhost http: không đặt Secure (nếu đặt, cookie không lưu được)');
 
 // --- refresh ---
 assert.equal((await call(H.refresh, {})).res.code, 401, 'không có cookie');
-const rf = await call(H.refresh, { headers: { cookie: 'other=1; yq_rt=RT1' } });
-assert.equal(rf.res.code, 200); assert.match(rf.res.headers['set-cookie'], /^yq_rt=RT2/, 'xoay vòng refresh token');
+assert.equal((await call(H.refresh, { headers: { cookie: 'yq_rt=RT1' } })).res.code, 401, 'thiếu yq_iat (phiên >72h) → buộc đăng xuất dù refresh token còn hợp lệ');
+const rf = await call(H.refresh, { headers: { cookie: 'other=1; yq_rt=RT1; yq_iat=1' } });
+assert.equal(rf.res.code, 200); assert.match(pickCookie(rf.res.headers['set-cookie'], 'yq_rt='), /^yq_rt=RT2/, 'xoay vòng refresh token');
 assert.ok(!JSON.stringify(rf.res.body).includes('RT2'));
-const dead = await call(H.refresh, { headers: { cookie: 'yq_rt=DEAD' } });
-assert.equal(dead.res.code, 401); assert.match(dead.res.headers['set-cookie'], /Max-Age=0/, 'token chết → xóa cookie');
+const dead = await call(H.refresh, { headers: { cookie: 'yq_rt=DEAD; yq_iat=1' } });
+assert.equal(dead.res.code, 401); assert.match(pickCookie(dead.res.headers['set-cookie'], 'yq_rt='), /Max-Age=0/, 'token chết → xóa cookie');
 
 // --- logout ---
 const lo = await call(H.logout, { headers: { cookie: 'yq_rt=RT1' } });
-assert.equal(lo.res.code, 200); assert.match(lo.res.headers['set-cookie'], /Max-Age=0/);
+assert.equal(lo.res.code, 200);
+assert.match(pickCookie(lo.res.headers['set-cookie'], 'yq_rt='), /Max-Age=0/);
+assert.match(pickCookie(lo.res.headers['set-cookie'], 'yq_iat='), /Max-Age=0/, 'logout cũng phải xóa yq_iat');
 assert.ok(lo.calls.some(c => c[0] === 'signOut'), 'phải thu hồi phiên phía Supabase');
 const lo2 = await call(H.logout, {});
 assert.equal(lo2.res.code, 200, 'logout không cookie vẫn OK');
@@ -70,7 +82,8 @@ assert.equal(lo2.res.code, 200, 'logout không cookie vẫn OK');
 assert.equal((await call(H.session, { body: {} })).res.code, 400);
 assert.equal((await call(H.session, { body: { refresh_token: 'DEAD' } })).res.code, 401);
 const ad = await call(H.session, { body: { refresh_token: 'OAUTH' } });
-assert.equal(ad.res.code, 200); assert.match(ad.res.headers['set-cookie'], /^yq_rt=RT2/);
+assert.equal(ad.res.code, 200); assert.match(pickCookie(ad.res.headers['set-cookie'], 'yq_rt='), /^yq_rt=RT2/);
+assert.ok(pickCookie(ad.res.headers['set-cookie'], 'yq_iat='), 'session (OAuth) cũng phải khởi tạo mốc 72h');
 assert.equal((await call(H.session, { headers: { origin: 'https://evil.com' }, body: { refresh_token: 'OAUTH' } })).res.code, 403);
 
 // --- giới hạn tần suất ---

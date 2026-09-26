@@ -514,7 +514,7 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
           ) : (
             <div className="flex items-center space-x-1 bg-blue-50 text-primary-dark border border-blue-200 px-2.5 py-1 rounded-full font-extrabold text-xs md:text-sm flex-shrink-0">
               <Award className="w-3.5 h-3.5 text-primary" />
-              <span>{result?.score}đ</span>
+              <span>{result ? `${result.score}đ` : '...'}</span>
             </div>
           )}
         </div>
@@ -1075,7 +1075,7 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
                 <div className="absolute top-0 left-0 right-0 h-1.5 bg-primary" />
                 <h3 className="text-base font-bold text-primary-dark">Bạn đã nộp bài thành công!</h3>
                 <div className="mt-2 flex items-baseline justify-center space-x-1">
-                  <span className="text-3xl md:text-4xl font-extrabold text-primary">{result?.score}</span>
+                  <span className="text-3xl md:text-4xl font-extrabold text-primary">{result ? result.score : '...'}</span>
                   <span className="text-xs md:text-sm font-semibold text-gray-500">/ 10.0 điểm</span>
                 </div>
                 <p className="text-[11px] text-gray-500 mt-1">

@@ -38,6 +38,8 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
   const [splitRatio, setSplitRatio] = useState<number>(55);
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [isPdfFullscreen, setIsPdfFullscreen] = useState<boolean>(false);
+  // Google Viewer mất vài giây tải, hiện overlay để học sinh đỡ tưởng bị treo
+  const [isPdfFrameLoading, setIsPdfFrameLoading] = useState<boolean>(true);
 
   // 2. Thu phóng file PDF độc lập (70% - 200%)
   const [pdfZoom, setPdfZoom] = useState<number>(1.0);
@@ -124,6 +126,9 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
   });
 
   const [exam, setExam] = useState<Exam | null>(null);
+  // Chênh lệch (ms) giữa giờ server và giờ máy học sinh, dùng để tính giờ làm bài
+  // không phụ thuộc đồng hồ máy khách (chống chỉnh lùi giờ để có thêm thời gian)
+  const [serverTimeOffsetMs, setServerTimeOffsetMs] = useState<number>(0);
   const [isSubmitted, setIsSubmitted] = useState<boolean>(isReview);
   const [result, setResult] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -139,6 +144,13 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
     if (!examId) return;
 
     async function init() {
+      // Lấy giờ server 1 lần để tính offset so với đồng hồ máy học sinh
+      supabase.rpc('server_now').then(({ data: serverTime }) => {
+        if (serverTime) {
+          setServerTimeOffsetMs(new Date(serverTime).getTime() - Date.now());
+        }
+      });
+
       const { data } = await supabase
         .from('public_exams')
         .select('*')
@@ -295,7 +307,7 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
   };
 
   const duration = exam?.duration_minutes || 0;
-  const timeLeft = useExamTimer(duration, `${examId}_${sessionToken}`, handleTimeOut, isSubmitted);
+  const timeLeft = useExamTimer(duration, `${examId}_${sessionToken}`, handleTimeOut, isSubmitted, serverTimeOffsetMs);
 
   const handlePointerDown = (e: React.PointerEvent) => {
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -399,6 +411,10 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
   };
 
   const currentQMeta = getQuestionMeta(activeMobileQuestion);
+
+  useEffect(() => {
+    setIsPdfFrameLoading(true);
+  }, [exam?.pdf_url, useGoogleViewer]);
 
   const getPdfEmbedUrl = () => {
     if (!exam?.pdf_url) return '';
@@ -620,21 +636,30 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
                 }}
               >
                 {useGoogleViewer ? (
-                  <iframe
-                    src={getPdfEmbedUrl()}
-                    title="Đề thi PDF"
-                    style={{
-                      width: `${(100 / pdfZoom).toFixed(2)}%`,
-                      height: `${(100 / pdfZoom).toFixed(2)}%`,
-                      transform: `scale(${pdfZoom})`,
-                      transformOrigin: 'top left',
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      border: 'none',
-                    }}
-                    allow="autoplay"
-                  />
+                  <>
+                    {isPdfFrameLoading && (
+                      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-white space-y-2 bg-[#525659]">
+                        <RefreshCw className="w-6 h-6 animate-spin" />
+                        <p className="text-sm">Đang tải đề thi qua Google Viewer...</p>
+                      </div>
+                    )}
+                    <iframe
+                      src={getPdfEmbedUrl()}
+                      title="Đề thi PDF"
+                      onLoad={() => setIsPdfFrameLoading(false)}
+                      style={{
+                        width: `${(100 / pdfZoom).toFixed(2)}%`,
+                        height: `${(100 / pdfZoom).toFixed(2)}%`,
+                        transform: `scale(${pdfZoom})`,
+                        transformOrigin: 'top left',
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        border: 'none',
+                      }}
+                      allow="autoplay"
+                    />
+                  </>
                 ) : (
                   <object
                     data={getPdfEmbedUrl()}

@@ -152,9 +152,11 @@ export const CreateExamModal: React.FC<CreateExamModalProps> = ({
       const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
       const filePath = `exams/${fileName}`;
 
+      // Tên file duy nhất vĩnh viễn (timestamp + random), không bao giờ bị ghi đè
+      // nên cache dài hạn an toàn — tránh học sinh phải tải lại PDF nhiều lần.
       const { error: uploadError } = await supabase.storage
         .from('exam-pdfs')
-        .upload(filePath, file, { cacheControl: '3600', upsert: false });
+        .upload(filePath, file, { cacheControl: '31536000', upsert: false });
 
       if (uploadError) throw uploadError;
 

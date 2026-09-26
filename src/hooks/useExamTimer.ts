@@ -4,11 +4,14 @@ export function useExamTimer(
   durationMinutes: number,
   sessionKey: string,
   onTimeOut: () => void,
-  isSubmitted: boolean = false
+  isSubmitted: boolean = false,
+  serverTimeOffsetMs: number = 0
 ) {
   const [secondsRemaining, setSecondsRemaining] = useState<number | null>(null);
   const onTimeOutRef = useRef(onTimeOut);
   onTimeOutRef.current = onTimeOut;
+  const offsetRef = useRef(serverTimeOffsetMs);
+  offsetRef.current = serverTimeOffsetMs;
 
   useEffect(() => {
     // Nếu đã nộp bài hoặc chưa tải xong thời gian làm bài (> 0 phút) thì không đếm
@@ -16,18 +19,21 @@ export function useExamTimer(
       return;
     }
 
+    // now() dùng giờ server bù trừ, không tin tuyệt đối đồng hồ máy học sinh
+    const now = () => Date.now() + offsetRef.current;
+
     const expireKey = `exam_expire_${sessionKey}_${durationMinutes}`;
     let expireTimestamp = localStorage.getItem(expireKey);
 
     if (!expireTimestamp) {
       // Lần đầu vào thi: Thiết lập mốc hết hạn theo ĐÚNG số phút của đề thi giáo viên giao
-      const targetTime = Date.now() + durationMinutes * 60 * 1000;
+      const targetTime = now() + durationMinutes * 60 * 1000;
       localStorage.setItem(expireKey, targetTime.toString());
       expireTimestamp = targetTime.toString();
     }
 
     const targetMs = parseInt(expireTimestamp, 10);
-    const initialDiff = Math.floor((targetMs - Date.now()) / 1000);
+    const initialDiff = Math.floor((targetMs - now()) / 1000);
 
     // Nếu thời gian đã hết từ trước
     if (initialDiff <= 0) {
@@ -40,7 +46,7 @@ export function useExamTimer(
 
     // Đếm ngược mỗi giây
     const interval = setInterval(() => {
-      const diff = Math.floor((targetMs - Date.now()) / 1000);
+      const diff = Math.floor((targetMs - now()) / 1000);
       if (diff <= 0) {
         setSecondsRemaining(0);
         clearInterval(interval);

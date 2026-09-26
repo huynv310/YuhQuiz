@@ -9,7 +9,6 @@ export function useExamTimer(
   const [secondsRemaining, setSecondsRemaining] = useState<number | null>(null);
   const onTimeOutRef = useRef(onTimeOut);
   onTimeOutRef.current = onTimeOut;
-  const isStartedRef = useRef(false);
 
   useEffect(() => {
     // Nếu đã nộp bài hoặc chưa tải xong thời gian làm bài (> 0 phút) thì không đếm
@@ -33,14 +32,11 @@ export function useExamTimer(
     // Nếu thời gian đã hết từ trước
     if (initialDiff <= 0) {
       setSecondsRemaining(0);
-      if (isStartedRef.current) {
-        onTimeOutRef.current();
-      }
+      onTimeOutRef.current();
       return;
     }
 
     setSecondsRemaining(initialDiff);
-    isStartedRef.current = true;
 
     // Đếm ngược mỗi giây
     const interval = setInterval(() => {

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { LogoMark } from '../Logo';
-import { UserCircle, Dumbbell, BookOpen, BookMarked, Activity, LogOut, GraduationCap, ShieldCheck } from 'lucide-react';
+import { UserCircle, Dumbbell, BookOpen, BookMarked, Activity, LogOut, ShieldCheck } from 'lucide-react';
 import { ExamList } from './ExamList';
 import { ProfileView } from '../ProfileView';
 import { PracticeView } from './PracticeView';

@@ -15,6 +15,7 @@ interface Row {
   error?: string;
   sessionToken?: string;
   studentNameInFile?: string;
+  classNameInFile?: string;
   answers?: unknown;
   cheatCount?: number;
   totalAwaySecs?: number;
@@ -63,7 +64,7 @@ export const RescueImportModal: React.FC<Props> = ({ exam, onClose, onDone }) =>
         if (typeof j.sessionToken !== 'string' || !UUID_RE.test(j.sessionToken)) throw new Error('Thiếu sessionToken hợp lệ');
         if (!j.answers || typeof j.answers !== 'object') throw new Error('Thiếu câu trả lời');
         next.push({
-          fileName: f.name, sessionToken: j.sessionToken, studentNameInFile: j.studentName,
+          fileName: f.name, sessionToken: j.sessionToken, studentNameInFile: j.studentName, classNameInFile: j.className,
           answers: j.answers, cheatCount: Number(j.cheatCount) || 0, totalAwaySecs: Number(j.totalAwaySecs) || 0,
           studentId: matchStudent(j.studentName),
         });
@@ -82,9 +83,11 @@ export const RescueImportModal: React.FC<Props> = ({ exam, onClose, onDone }) =>
     const out: Row[] = [];
     for (const r of rows) {
       if (r.error || !r.studentId || r.result?.startsWith('✓')) { out.push(r); continue; }
+      const classNameFromRoster = students.find(s => s.id === r.studentId)?.className;
       const { data, error } = await supabase.rpc('teacher_import_rescue', {
         p_exam_id: exam.id, p_student_id: r.studentId, p_session_token: r.sessionToken,
         p_answers: r.answers, p_cheat_count: r.cheatCount, p_total_away_seconds: r.totalAwaySecs,
+        p_class_name: r.classNameInFile || classNameFromRoster || null,
       });
       out.push({ ...r, result: error ? `✗ ${error.message}` : `✓ ${data?.score} điểm` });
     }

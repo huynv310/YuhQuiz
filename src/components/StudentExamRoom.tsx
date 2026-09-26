@@ -375,6 +375,10 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  useEffect(() => {
+    setIsPdfFrameLoading(true);
+  }, [exam?.pdf_url, useGoogleViewer]);
+
   if (!exam) {
     return (
       <div className="h-screen w-screen flex flex-col items-center justify-center bg-[#FAFAFA] space-y-3 font-sans">
@@ -411,10 +415,6 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
   };
 
   const currentQMeta = getQuestionMeta(activeMobileQuestion);
-
-  useEffect(() => {
-    setIsPdfFrameLoading(true);
-  }, [exam?.pdf_url, useGoogleViewer]);
 
   const getPdfEmbedUrl = () => {
     if (!exam?.pdf_url) return '';

@@ -35,7 +35,7 @@ class GlobalErrorBoundary extends React.Component<
             </div>
             <h2 className="text-lg font-extrabold text-gray-900">Giao diện gặp sự cố tạm thời</h2>
             <p className="text-xs text-gray-500">
-              {String(this.state.error?.message || this.state.error || 'Vui lòng làm mới trang để tiếp tục.')}
+              Vui lòng làm mới trang để tiếp tục. Nếu vẫn còn lỗi, hãy liên hệ hỗ trợ.
             </p>
             <button
               onClick={() => {

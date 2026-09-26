@@ -127,6 +127,7 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
   const [isSubmitted, setIsSubmitted] = useState<boolean>(isReview);
   const [result, setResult] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const submitLockRef = useRef<boolean>(false); // khóa đồng bộ, tránh double-submit trong lúc chờ jitter
 
   // ANTI-CHEAT: HOÀN TOÀN TẮT KHI ĐÃ NỘP BÀI (!isSubmitted)
   const { cheatCount, totalAwaySecs } = useAntiCheat(!isSubmitted && !isReview, undefined, (reason, away) => {
@@ -205,18 +206,18 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
 
   // HÀM NỘP BÀI TỔNG THỂ
   const handleFinalSubmit = async (isAutoSubmit = false): Promise<boolean> => {
-    if (isSubmitting || isSubmitted) return false;
+    if (submitLockRef.current || isSubmitted) return false;
+    submitLockRef.current = true;
+    setIsSubmitting(true);
 
     // THUẬT TOÁN JITTER: Phân tán tải mạng nếu nộp tự động khi hết giờ
     if (isAutoSubmit) {
       setIsJittering(true);
       const jitterDelay = Math.floor(Math.random() * 30000); // 0-30s
-      console.log(`[Jitter] Tạm hoãn nộp bài tự động trong ${jitterDelay}ms để tránh quá tải server.`);
       await new Promise(resolve => setTimeout(resolve, jitterDelay));
       setIsJittering(false);
     }
 
-    setIsSubmitting(true);
     setNetworkError(false);
     try {
       const studentId = currentUser?.id || null;
@@ -251,6 +252,7 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
       setNetworkError(true);
       return false;
     } finally {
+      submitLockRef.current = false;
       setIsSubmitting(false);
     }
   };

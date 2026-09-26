@@ -16,7 +16,9 @@ export function useAutoSave(
   const latestAnswers = useRef(answers);
   latestAnswers.current = answers;
 
-  // 1. Luôn lưu LocalStorage tức thì (0ms)
+  // 1. Lưu bản dự phòng cứu hộ tức thì (0ms)
+  // (bản nháp `draft_${examId}_${sessionToken}` đã được StudentExamRoom.updateAnswer ghi trực tiếp,
+  //  đồng bộ ngay khi state cập nhật — không lặp lại ở đây)
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
@@ -24,7 +26,6 @@ export function useAutoSave(
     }
 
     if (examId && sessionToken && !isSubmitted) {
-      localStorage.setItem(`draft_${examId}_${sessionToken}`, JSON.stringify(answers));
       saveRescue({ examId, sessionToken, studentName, className, answers });
     }
   }, [answers, examId, sessionToken, isSubmitted]);

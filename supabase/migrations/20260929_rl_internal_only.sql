@@ -6,10 +6,9 @@
 -- chỉ cho phép BFF gọi 2 hàm này bằng cách kiểm tra một secret dùng chung,
 -- BFF gửi qua header HTTP tùy biến (PostgREST expose qua GUC request.headers).
 --
--- Cần cấu hình 1 lần trên Supabase (Dashboard → SQL Editor), thay '<secret>'
--- bằng 1 chuỗi ngẫu nhiên dài (vd: openssl rand -hex 32):
---   ALTER DATABASE postgres SET app.rl_internal_secret = '<secret>';
--- rồi đặt cùng giá trị đó vào biến môi trường Vercel: RL_INTERNAL_SECRET.
+-- LƯU Ý: cách lưu secret bằng ALTER DATABASE ở dưới bị Supabase managed Postgres
+-- chặn (permission denied) — xem migration 20260930_rl_secret_table.sql để biết
+-- cách cấu hình đúng (lưu secret vào bảng thay vì GUC database).
 
 CREATE OR REPLACE FUNCTION public._rl_internal_ok() RETURNS boolean
 LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$

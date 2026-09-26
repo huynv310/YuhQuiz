@@ -13,6 +13,7 @@ export function useAntiCheat(
   const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastWidth = useRef<number>(window.innerWidth);
   const lastHeight = useRef<number>(window.innerHeight);
+  const lastOuterWidth = useRef<number>(window.outerWidth);
   const isRotating = useRef<boolean>(false);
   const rotationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -113,12 +114,18 @@ export function useAntiCheat(
       }
 
       // Kịch bản D (Desktop): Phát hiện co rút màn hình đột ngột khi mở thanh bên AI (Edge Copilot / Chrome Side Panel)
+      // Phân biệt với người dùng tự kéo giãn/thu nhỏ cửa sổ trình duyệt: khi đó outerWidth (kích thước
+      // cửa sổ thật) cũng thay đổi tương ứng; sidebar/AI panel chỉ ăn vào viewport (innerWidth), outerWidth
+      // gần như không đổi.
+      const currentOuterW = window.outerWidth;
       const delta = lastWidth.current - currentW;
-      if (delta >= 180 && currentW < 1100) {
+      const outerDelta = Math.abs(lastOuterWidth.current - currentOuterW);
+      if (delta >= 180 && currentW < 1100 && outerDelta < 80) {
         recordViolation('Phát hiện mở thanh bên AI / chia đôi màn hình', 2);
       }
       lastWidth.current = currentW;
       lastHeight.current = currentH;
+      lastOuterWidth.current = currentOuterW;
     };
 
     // 5. PHÁT HIỆN THOÁT TOÀN MÀN HÌNH

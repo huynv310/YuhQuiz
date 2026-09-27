@@ -12,6 +12,8 @@ import { SUBJECT_PRESETS } from '../../constants/subjectPresets';
 import { RescuePanel } from './RescuePanel';
 import { downloadRescue } from '../../lib/rescue';
 import { ExamSearchBar, ExamIdChips, SubjectGroups, filterExams } from '../SubjectGroups';
+import { RankBadge } from '../RankBadge';
+import { useMyRank } from '../../hooks/useMyRank';
 
 interface StudentPortalProps {
   currentUser: any;
@@ -45,6 +47,7 @@ export const ExamList: React.FC<StudentPortalProps> = ({
   // Modals
   const [isJoinClassOpen, setIsJoinClassOpen] = useState(false);
   const [selectedLeaderboardExam, setSelectedLeaderboardExam] = useState<Exam | null>(null);
+  const { rank } = useMyRank(currentUser?.id);
 
   const loadStudentData = async () => {
     if (!currentUser?.id) return;
@@ -215,11 +218,18 @@ export const ExamList: React.FC<StudentPortalProps> = ({
                 <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-bold border border-emerald-200">
                   Học sinh
                 </span>
+                {rank && <RankBadge tier={rank.rank_tier} size={26} className="!gap-1 text-[11px]" />}
               </div>
               <div className="flex items-center space-x-2 text-sm text-gray-500 mt-1">
                 <span>{profile?.school || currentUser?.school || 'Trường THPT'}</span>
                 <span>•</span>
                 <span>Mã: <b className="font-mono text-gray-700">{profile?.user_code || '—'}</b></span>
+                {rank?.position && (
+                  <>
+                    <span>•</span>
+                    <span>Hạng <b className="text-gray-700">#{rank.position}</b> toàn hệ thống</span>
+                  </>
+                )}
               </div>
             </div>
           </div>

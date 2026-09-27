@@ -5,6 +5,8 @@ import { GRADES } from '../constants/subjectPresets';
 import { useReveal } from '../lib/motion';
 import { signOutEverywhere } from '../lib/session';
 import { listRescue, removeRescue } from '../lib/rescue';
+import { RankBadge } from './RankBadge';
+import { useMyRank } from '../hooks/useMyRank';
 
 interface Props {
   profile: any;
@@ -143,6 +145,7 @@ export const ProfileView: React.FC<Props> = ({ profile, onUpdated }) => {
   };
 
   const initial = (profile?.full_name || profile?.email || '?').trim().charAt(0).toUpperCase();
+  const { rank } = useMyRank(profile?.id);
 
   return (
     <div ref={rootRef} className="max-w-3xl mx-auto px-4 py-6 space-y-5">
@@ -157,6 +160,12 @@ export const ProfileView: React.FC<Props> = ({ profile, onUpdated }) => {
             <span className="chip chip-muted font-mono">{profile?.user_code || '—'}</span>
           </div>
         </div>
+        {rank && (
+          <div className="ml-auto flex flex-col items-end gap-0.5 shrink-0">
+            <RankBadge tier={rank.rank_tier} size={36} />
+            {rank.position && <span className="text-[11px] text-slate-400 font-semibold">Hạng #{rank.position} toàn hệ thống</span>}
+          </div>
+        )}
       </div>
 
       <div data-reveal className="card p-5">

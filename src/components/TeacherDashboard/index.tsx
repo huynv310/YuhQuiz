@@ -4,6 +4,8 @@ import { ExamManager } from './ExamManager';
 import { ProfileView } from '../ProfileView';
 import { QuestionBank } from './QuestionBank';
 import { LogoMark } from '../Logo';
+import { RankBadge } from '../RankBadge';
+import { useMyRank } from '../../hooks/useMyRank';
 
 interface TeacherDashboardProps {
   currentUser?: any;
@@ -19,6 +21,7 @@ type TabType = 'exams' | 'profile' | 'question_bank' | 'stats' | 'settings';
 
 export const TeacherDashboard: React.FC<TeacherDashboardProps> = (props) => {
   const [activeTab, setActiveTab] = useState<TabType>('exams');
+  const { rank } = useMyRank(props.currentUser?.id);
 
   const renderContent = () => {
     switch (activeTab) {
@@ -61,6 +64,17 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = (props) => {
             {props.profile?.user_code && <span className="block text-[11px] text-slate-500">Mã: <b className="font-mono">{props.profile.user_code}</b></span>}
           </div>
         </div>
+
+        {/* Ô NHỎ HIỂN THỊ RANK ĐÓNG GÓP */}
+        {rank && (
+          <div className="px-3 md:px-4 py-3 border-b border-slate-100 flex items-center md:justify-between justify-center gap-2">
+            <RankBadge tier={rank.rank_tier} size={30} showLabel={false} />
+            <div className="hidden md:block min-w-0">
+              <p className="text-xs font-bold text-slate-700 truncate">{rank.rank_tier}</p>
+              <p className="text-[11px] text-slate-400">{rank.exams_count ?? 0} đề đã đóng góp</p>
+            </div>
+          </div>
+        )}
 
         {/* MENU ITEMS */}
         <nav className="flex-1 py-6 px-3 space-y-2 overflow-y-auto">

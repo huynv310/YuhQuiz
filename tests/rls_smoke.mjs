@@ -20,7 +20,10 @@ create role anon nologin; create role authenticated nologin; create role service
 `);
 await db.exec(`grant usage on schema public,auth,storage to anon,authenticated,service_role; alter default privileges in schema public grant all on tables to anon,authenticated,service_role; alter default privileges in schema public grant all on functions to anon,authenticated,service_role; alter default privileges in schema public grant all on sequences to anon,authenticated,service_role;`);
 await db.exec('grant all on all tables in schema storage to anon,authenticated,service_role;');
-for (const f of ['schema.sql','migrations/20260919_security_hardening.sql','migrations/20260920_exam_ids_grade_limits.sql','migrations/20260921_question_bank_subject_grade.sql','migrations/20260922_solution_attachments.sql','migrations/20260923_practice_solutions.sql','migrations/20260924_user_codes.sql','migrations/20260925_data_cleanup_account_delete.sql','migrations/20260926_linter_hardening.sql','migrations/20260927_legacy_cleanup.sql']) {
+// Đọc hết thư mục migrations theo thứ tự tên file, không hardcode danh sách — tránh lệch
+// (từng có 10 migration bị bỏ sót khỏi test vì danh sách cứng không được cập nhật theo).
+const migrationFiles = fs.readdirSync(new URL('migrations/', root)).filter(f => f.endsWith('.sql')).sort();
+for (const f of ['schema.sql', ...migrationFiles.map(f => `migrations/${f}`)]) {
   try { await db.exec(fs.readFileSync(new URL(f,root),'utf8')); console.log('OK',f); }
   catch(e){ console.log('FAIL',f,e.message, e.position||''); break; }
 }
@@ -59,6 +62,16 @@ check('server grades 5/10', await as(S,'authenticated',`select public.submit_and
 check('resubmit is idempotent', await as(S,'authenticated',`select public.submit_and_grade_exam('${EX}','${TOK}','HS','','{"part_1":{"1":"A","2":"B"}}',0,0) r`), v=>Number(v[0]?.r?.score)===5);
 check('second attempt blocked', await as(S,'authenticated',`select public.submit_and_grade_exam('${EX}','${TOK2}','HS','','{}',0,0)`), denied);
 check('leaderboard shows score', await as(S,'authenticated','select student_name,score from public_leaderboard'), v=>v.length===1 && Number(v[0].score)===5);
+// ---- Hạng toàn hệ thống (student_stats/teacher_stats cập nhật bằng trigger) ----
+check('my_rank: học sinh sau 1 đề (score 5)', await as(S,'authenticated','select public.get_my_rank() r'),
+  v=>v[0]?.r?.role==='student' && v[0]?.r?.exams_completed===1 && Number(v[0]?.r?.avg_score)===5 && v[0]?.r?.position===1);
+check('my_rank: giáo viên sau 1 đề có người nộp', await as(T,'authenticated','select public.get_my_rank() r'),
+  v=>v[0]?.r?.role==='teacher' && v[0]?.r?.exams_count===1);
+check('student leaderboard: anon denied', await as(S,'anon','select public.get_student_leaderboard(10)'), denied);
+check('student leaderboard: hiện đúng tên + trường, không có SĐT', await as(S2,'authenticated','select * from public.get_student_leaderboard(10)'),
+  v=>v.length===1 && v[0].full_name==='HS' && !('phone' in v[0]));
+check('teacher leaderboard: hiện đúng số đề', await as(S2,'authenticated','select * from public.get_teacher_leaderboard(10)'),
+  v=>v.length===1 && v[0].exams_count===1 && v[0].rank_tier==='Hạt Giống');
 check('teacher reads own keys', await as(T,'authenticated','select part_1_keys from exam_answer_keys'), v=>v.length===1);
 check('teacher sees submissions', await as(T,'authenticated','select count(*)::int c from submissions'), v=>v[0].c===1);
 check('other student sees no submissions', await as(S2,'authenticated','select count(*)::int c from submissions'), v=>v[0].c===0);
@@ -159,18 +172,29 @@ check('profile: không đổi được email', await as(S,'authenticated',`updat
 check('profile: không sửa hồ sơ người khác', await as(S,'authenticated',`update profiles set full_name='hack' where id='${T}' returning id`), empty);
 check('question bank: grade 13 rejected', await as(T,'authenticated',`insert into question_bank(author_id,grade,difficulty,part,content_image_url,correct_key) values('${T}',13,1,1,'x','A')`), denied);
 // ---- Rate limit RPC ----
+// auth_rl_fail/auth_rl_reset chỉ gọi được kèm secret nội bộ (header x-yq-rl-secret, xem
+// 20260929/20260930) — mô phỏng đúng cách BFF gọi, thay vì gọi trần bằng anon như trước
+// khi có migration đó (test cũ gọi trần đã lỗi thời, chỉ chưa từng bị phát hiện vì migration
+// bảo mật này chưa từng được nạp vào chuỗi test tới hôm nay).
+const RL_SECRET = 'test-secret-khong-dung-thuc-te';
+await db.exec(`reset role; insert into public._rl_secret(id, secret) values (true, '${RL_SECRET}');`);
+const asInternal = async (uid, role, sql) => {
+  await db.exec(`reset role; select set_config('request.uid','${uid}',false); select set_config('request.headers','{"x-yq-rl-secret":"${RL_SECRET}"}',false); set role ${role};`);
+  try { return (await db.query(sql)).rows; } catch (e) { return new Error(e.message); }
+};
 const K = 'a'.repeat(64), K2 = 'b'.repeat(64);
-for (let i = 0; i < 3; i++) await as(S,'anon',`select public.auth_rl_fail('${K}')`);
+check('rl: anon không kèm secret bị chặn (lỗ hổng đã vá)', await as(S,'anon',`select public.auth_rl_fail('${K}')`), denied);
+for (let i = 0; i < 3; i++) await asInternal(S,'anon',`select public.auth_rl_fail('${K}')`);
 check('rl: under limit → 0', await as(S,'anon',`select public.auth_rl_check('${K}',5,900) w`), v => v[0].w === 0);
-for (let i = 0; i < 2; i++) await as(S,'anon',`select public.auth_rl_fail('${K}')`);
+for (let i = 0; i < 2; i++) await asInternal(S,'anon',`select public.auth_rl_fail('${K}')`);
 check('rl: at limit → wait > 0', await as(S,'anon',`select public.auth_rl_check('${K}',5,900) w`), v => v[0].w > 0 && v[0].w <= 900);
 check('rl: other key unaffected', await as(S,'anon',`select public.auth_rl_check('${K2}',5,900) w`), v => v[0].w === 0);
 check('rl: window expiry frees the key', await (async()=>{ await db.exec(`reset role; update auth_attempts set at = now() - interval '20 minutes'`); return as(S,'anon',`select public.auth_rl_check('${K}',5,900) w`); })(), v => v[0].w === 0);
-check('rl: reset clears counter', await (async()=>{ for (let i=0;i<5;i++) await as(S,'anon',`select public.auth_rl_fail('${K2}')`); await as(S,'anon',`select public.auth_rl_reset('${K2}')`); return as(S,'anon',`select public.auth_rl_check('${K2}',5,900) w`); })(), v => v[0].w === 0);
-check('rl: bad key rejected', await as(S,'anon',`select public.auth_rl_fail('not-a-hash')`), denied);
+check('rl: reset clears counter', await (async()=>{ for (let i=0;i<5;i++) await asInternal(S,'anon',`select public.auth_rl_fail('${K2}')`); await asInternal(S,'anon',`select public.auth_rl_reset('${K2}')`); return as(S,'anon',`select public.auth_rl_check('${K2}',5,900) w`); })(), v => v[0].w === 0);
+check('rl: bad key rejected', await asInternal(S,'anon',`select public.auth_rl_fail('not-a-hash')`), denied);
 check('rl: table closed to clients', await as(S,'anon','select * from auth_attempts'), denied);
 check('rl: table closed to authenticated', await as(S,'authenticated','select * from auth_attempts'), denied);
-check('rl: per-key row cap (spam ≤ 50)', await (async()=>{ const K3='c'.repeat(64); for (let i=0;i<70;i++) await as(S,'anon',`select public.auth_rl_fail('${K3}')`); await db.exec('reset role'); return (await db.query(`select count(*)::int c from auth_attempts where key='${K3}'`)).rows; })(), v => v[0].c === 50);
+check('rl: per-key row cap (spam ≤ 50)', await (async()=>{ const K3='c'.repeat(64); for (let i=0;i<70;i++) await asInternal(S,'anon',`select public.auth_rl_fail('${K3}')`); await db.exec('reset role'); return (await db.query(`select count(*)::int c from auth_attempts where key='${K3}'`)).rows; })(), v => v[0].c === 50);
 // ---- Data release + account deletion ----
 {
   const H = c => c.repeat(64);

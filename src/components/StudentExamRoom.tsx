@@ -152,11 +152,25 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
         }
       });
 
-      const { data } = await supabase
-        .from('public_exams')
+      // Đề thi và bản nộp/nháp không phụ thuộc nhau → gọi song song thay vì tuần tự,
+      // giảm 1 nhịp round-trip mỗi học sinh lúc mở đề (đáng kể khi cả lớp vào cùng lúc).
+      let subQuery = supabase
+        .from('submissions')
         .select('*')
-        .eq('id', examId)
-        .maybeSingle();
+        .eq('exam_id', examId);
+
+      if (isReview && reviewSubmissionId !== 'latest') {
+        subQuery = subQuery.eq('id', reviewSubmissionId);
+      } else if (isReview && currentUser?.id) {
+        subQuery = subQuery.eq('student_id', currentUser.id).eq('status', 'submitted');
+      } else {
+        subQuery = subQuery.eq('session_token', sessionToken);
+      }
+
+      const [{ data }, { data: subRows }] = await Promise.all([
+        supabase.from('public_exams').select('*').eq('id', examId).maybeSingle(),
+        subQuery.order('submitted_at', { ascending: false, nullsFirst: false }).limit(1),
+      ]);
 
       if (data) {
         setExam(data);
@@ -166,21 +180,6 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
         }
       }
 
-      // FETCH THE SUBMISSION (Prioritize by student_id if logged in, fallback to sessionToken)
-      let subQuery = supabase
-        .from('submissions')
-        .select('*')
-        .eq('exam_id', examId);
-        
-      if (isReview && reviewSubmissionId !== 'latest') {
-        subQuery = subQuery.eq('id', reviewSubmissionId);
-      } else if (isReview && currentUser?.id) {
-        subQuery = subQuery.eq('student_id', currentUser.id).eq('status', 'submitted');
-      } else {
-        subQuery = subQuery.eq('session_token', sessionToken);
-      }
-
-      const { data: subRows } = await subQuery.order('submitted_at', { ascending: false, nullsFirst: false }).limit(1);
       const subData = subRows?.[0];
 
       if (subData) {
@@ -231,7 +230,7 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
     // THUẬT TOÁN JITTER: Phân tán tải mạng nếu nộp tự động khi hết giờ
     if (isAutoSubmit) {
       setIsJittering(true);
-      const jitterDelay = Math.floor(Math.random() * 30000); // 0-30s
+      const jitterDelay = Math.floor(Math.random() * 45000); // 0-45s: rải đỉnh tải lúc cả lớp cùng hết giờ
       await new Promise(resolve => setTimeout(resolve, jitterDelay));
       setIsJittering(false);
     }

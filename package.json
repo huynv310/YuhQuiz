@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test": "node tests/test_scoring.js && node tests/test_dynamic_scoring.js && node tests/test_answer_parser.js && node tests/test_autogen.mjs && node tests/test_bff.mjs",
     "test:db": "node tests/rls_smoke.mjs && node tests/legacy_migration.mjs",
-    "typecheck": "tsc --noEmit && tsc -p tsconfig.api.json"
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.api.json",
+    "verify": "npm run typecheck && npm test && npm run test:db && npm run build"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",

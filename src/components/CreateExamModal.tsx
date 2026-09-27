@@ -6,6 +6,7 @@ import {
 import { supabase } from '../lib/supabase';
 import { SUBJECT_PRESETS, MAX_QUESTION_LIMITS, GRADES } from '../constants/subjectPresets';
 import { parseBatchAnswerText } from '../utils/answerParser';
+import { compressPdf } from '../lib/pdfCompress';
 
 interface CreateExamModalProps {
   currentUser?: any;
@@ -13,6 +14,9 @@ interface CreateExamModalProps {
   onClose: () => void;
   onSuccess: () => void;
 }
+
+const PDF_WARN_BYTES = 3 * 1024 * 1024;
+const PDF_TARGET_BYTES = 1.5 * 1024 * 1024;
 
 export const CreateExamModal: React.FC<CreateExamModalProps> = ({
   currentUser,
@@ -31,6 +35,7 @@ export const CreateExamModal: React.FC<CreateExamModalProps> = ({
   const [duration, setDuration] = useState<number>(examToEdit?.duration_minutes || 90);
   const [pdfUrl, setPdfUrl] = useState(examToEdit?.pdf_url || '');
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Cấu hình số câu & điểm chuẩn ban đầu
@@ -133,21 +138,39 @@ export const CreateExamModal: React.FC<CreateExamModalProps> = ({
 
   // Upload PDF
   const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const original = e.target.files?.[0];
+    e.target.value = '';
+    if (!original) return;
 
-    if (file.type !== 'application/pdf') {
+    if (original.type !== 'application/pdf') {
       alert('Chỉ cho phép tải lên tệp định dạng PDF!');
       return;
     }
 
-    if (file.size > 15 * 1024 * 1024) {
+    if (original.size > 15 * 1024 * 1024) {
       alert('Tệp PDF vượt quá 15MB. Vui lòng nén file hoặc dán link Google Drive.');
       return;
     }
 
     setIsUploading(true);
     try {
+      let file = original;
+      // Đề nặng làm học sinh tải chậm & tốn băng thông → tự nén (chữ thành ảnh, không chọn/copy được).
+      if (original.size > PDF_WARN_BYTES) {
+        const mb = (n: number) => (n / 1048576).toFixed(1);
+        setUploadStatus('Đang tối ưu dung lượng...');
+        let compressed: File | null = null;
+        try {
+          compressed = await compressPdf(original, PDF_TARGET_BYTES, setUploadStatus);
+        } catch { /* nén lỗi → giữ bản gốc */ }
+        if (compressed) {
+          file = compressed;
+          alert(`Đề nặng ${mb(original.size)}MB nên đã được tự động tối ưu còn ${mb(compressed.size)}MB (chất lượng xem gần như không đổi, chữ trong PDF không còn chọn/copy được).`);
+        } else {
+          alert(`Đề nặng ${mb(original.size)}MB và không tự nén được. Học sinh mạng yếu có thể tải chậm — hãy xuất lại PDF ở chế độ "Reduced size" rồi tải lên.`);
+        }
+      }
+
       // Tên = SHA-256 nội dung: cùng nội dung chỉ lưu 1 bản, và không bao giờ bị ghi đè
       // nên cache dài hạn an toàn.
       const digest = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
@@ -172,6 +195,7 @@ export const CreateExamModal: React.FC<CreateExamModalProps> = ({
       alert('Lỗi tải file: ' + err.message);
     } finally {
       setIsUploading(false);
+      setUploadStatus('');
     }
   };
 
@@ -694,10 +718,11 @@ export const CreateExamModal: React.FC<CreateExamModalProps> = ({
               />
               <label className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-3.5 py-2 rounded-xl cursor-pointer flex items-center space-x-1.5 flex-shrink-0">
                 <Upload className="w-3.5 h-3.5" />
-                <span>{isUploading ? 'Đang tải...' : 'Upload PDF'}</span>
+                <span>{isUploading ? (uploadStatus || 'Đang tải...') : 'Upload PDF'}</span>
                 <input type="file" accept="application/pdf" onChange={handlePdfUpload} className="hidden" />
               </label>
             </div>
+            <p className="text-[11px] text-gray-500 mt-1">Nên dưới 3MB. Đề nặng hơn sẽ được tự động nén.</p>
           </div>
 
           {/* HÀNG 7: DÁN ĐÁP ÁN HÀNG LOẠT */}

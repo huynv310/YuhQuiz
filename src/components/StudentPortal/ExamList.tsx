@@ -47,6 +47,7 @@ export const ExamList: React.FC<StudentPortalProps> = ({
   // Modals
   const [isJoinClassOpen, setIsJoinClassOpen] = useState(false);
   const [selectedLeaderboardExam, setSelectedLeaderboardExam] = useState<Exam | null>(null);
+  const [exportErrors, setExportErrors] = useState<Record<string, string>>({});
   const { rank } = useMyRank(currentUser?.id);
 
   const loadStudentData = async () => {
@@ -531,9 +532,17 @@ export const ExamList: React.FC<StudentPortalProps> = ({
                                     className="btn btn-secondary !py-1 !px-2.5 !text-xs mb-1"><Eye className="w-3.5 h-3.5" /> Xem lại bài & đáp án</button>
                           )}
                           {sub.answers && sub.session_token && (
-                            <button onClick={() => downloadRescue({ examId: sub.exam_id, examTitle: exams.find(e => e.id === sub.exam_id)?.title, studentName: sub.student_name, className: sub.class_name || '', sessionToken: sub.session_token, answers: sub.answers, cheatCount: sub.cheat_count || 0, totalAwaySecs: sub.total_away_seconds || 0, timestamp: Date.now() })}
+                            <button onClick={async () => {
+                                      setExportErrors(m => ({ ...m, [sub.id]: '' }));
+                                      try {
+                                        await downloadRescue({ examId: sub.exam_id, examTitle: exams.find(e => e.id === sub.exam_id)?.title, studentName: sub.student_name, className: sub.class_name || '', sessionToken: sub.session_token, answers: sub.answers, cheatCount: sub.cheat_count || 0, totalAwaySecs: sub.total_away_seconds || 0, timestamp: Date.now() });
+                                      } catch (e: any) {
+                                        setExportErrors(m => ({ ...m, [sub.id]: e?.message || 'Không xuất được file — hãy thử lại.' }));
+                                      }
+                                    }}
                                     className="btn btn-secondary !py-1 !px-2.5 !text-xs mb-1 ml-1"><Download className="w-3.5 h-3.5" /> Xuất .yuhquiz</button>
                           )}
+                          {exportErrors[sub.id] && <p className="text-[10px] text-rose-600 mt-1 max-w-[160px] text-right">{exportErrors[sub.id]}</p>}
                           <span className="text-base font-extrabold text-primary block">
                             {sub.score !== null ? `${sub.score} đ` : '--'}
                           </span>

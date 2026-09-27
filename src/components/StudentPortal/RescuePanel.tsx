@@ -40,6 +40,12 @@ export const RescuePanel: React.FC<Props> = ({ currentUser, submittedTokens, exa
     onSubmitted();
   };
 
+  const exportFile = async (r: RescueRecord) => {
+    setMsg(m => ({ ...m, [r.sessionToken]: '' }));
+    try { await downloadRescue(r); }
+    catch (e: any) { setMsg(m => ({ ...m, [r.sessionToken]: e?.message || 'Không xuất được file — hãy thử lại.' })); }
+  };
+
   const importFile = async (files: FileList | null) => {
     setNote(null);
     if (!files?.length) return;
@@ -72,7 +78,7 @@ export const RescuePanel: React.FC<Props> = ({ currentUser, submittedTokens, exa
           <button onClick={() => resubmit(r)} disabled={busy === r.sessionToken} className="btn btn-primary !py-1.5">
             <Send className="w-4 h-4" /> {busy === r.sessionToken ? 'Đang nộp…' : 'Nộp lại'}
           </button>
-          <button onClick={() => downloadRescue(r)} className="btn btn-secondary !py-1.5"><Download className="w-4 h-4" /> Xuất file</button>
+          <button onClick={() => exportFile(r)} className="btn btn-secondary !py-1.5"><Download className="w-4 h-4" /> Xuất .yuhquiz</button>
           <button aria-label="Xóa bản lưu" onClick={() => { if (confirm('Xóa bản lưu trong máy? Không thể khôi phục.')) { removeRescue(r.sessionToken); refresh(); } }} className="btn btn-ghost !py-1.5"><Trash2 className="w-4 h-4" /></button>
         </div>
       ))}

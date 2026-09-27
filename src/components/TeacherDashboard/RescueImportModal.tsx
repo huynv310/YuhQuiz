@@ -33,20 +33,23 @@ export const RescueImportModal: React.FC<Props> = ({ exam, onClose, onDone }) =>
 
   useEffect(() => {
     (async () => {
-      const { data: mem } = await supabase
-        .from('class_memberships')
-        .select('student_id, classrooms(name)');
-      const ids = Array.from(new Set((mem || []).map((m: any) => m.student_id)));
-      if (!ids.length) return;
-      const { data: profs } = await supabase.from('profiles').select('id, full_name').in('id', ids);
-      const nameOf = new Map((profs || []).map((p: any) => [p.id, p.full_name as string]));
-      setStudents((mem || []).map((m: any) => ({
-        id: m.student_id,
-        name: nameOf.get(m.student_id) || '(không tên)',
-        className: m.classrooms?.name || '',
-      })));
+      // Danh sách phải là THÍ SINH ĐÃ THAM GIA THI đề này (có phiên start_attempt trong
+      // submissions), KHÔNG phải học sinh trong lớp giáo viên quản lý — đề công khai thì học
+      // sinh ngoài lớp vẫn làm được, và họ mới là người cần cứu hộ khi mất mạng.
+      const { data: subs } = await supabase
+        .from('submissions')
+        .select('student_id, student_name, class_name')
+        .eq('exam_id', exam.id)
+        .eq('status', 'in_progress');
+      const seen = new Map<string, Student>();
+      (subs || []).forEach((s: any) => {
+        if (s.student_id && !seen.has(s.student_id)) {
+          seen.set(s.student_id, { id: s.student_id, name: s.student_name || '(không tên)', className: s.class_name || '' });
+        }
+      });
+      setStudents(Array.from(seen.values()));
     })();
-  }, []);
+  }, [exam.id]);
 
   const matchStudent = (name?: string): string => {
     if (!name) return '';
@@ -106,7 +109,7 @@ export const RescueImportModal: React.FC<Props> = ({ exam, onClose, onDone }) =>
           <button onClick={onClose} aria-label="Đóng"><X className="w-5 h-5" /></button>
         </div>
         <p className="text-sm text-gray-500 mb-3">
-          Chọn các file <b>.yuhquiz</b> học sinh gửi khi mất mạng. Hệ thống chấm lại bằng đáp án trên máy chủ; chỉ nhập được cho học sinh thuộc lớp của bạn.
+          Chọn các file <b>.yuhquiz</b> học sinh gửi khi mất mạng. Hệ thống chấm lại bằng đáp án trên máy chủ; chỉ nhập được cho thí sinh đã thật sự bắt đầu làm đề này.
         </p>
         <label className="inline-flex items-center gap-2 px-3 py-2 border rounded-lg cursor-pointer text-sm font-semibold hover:bg-gray-50">
           <Upload className="w-4 h-4" /> Chọn file…

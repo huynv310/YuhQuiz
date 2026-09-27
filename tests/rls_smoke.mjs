@@ -76,10 +76,18 @@ check('teacher reads own keys', await as(T,'authenticated','select part_1_keys f
 check('teacher sees submissions', await as(T,'authenticated','select count(*)::int c from submissions'), v=>v[0].c===1);
 check('other student sees no submissions', await as(S2,'authenticated','select count(*)::int c from submissions'), v=>v[0].c===0);
 const imp=(uid,stu,tok,ans)=>as(uid,'authenticated',`select public.teacher_import_rescue('${EX}','${stu}','${tok}','${ans}',2,30) r`);
+// Cứu hộ giờ đòi hỏi học sinh ĐÃ start_attempt thật với đúng token đó (không còn dựa vào có
+// thuộc lớp giáo viên hay không) — mô phỏng đúng học sinh mất mạng giữa chừng.
+await as(S2,'authenticated',`select public.start_attempt('${EX}','${TOK3}','HS2')`);
 check('import rescue: teacher, own student', await imp(T,S2,TOK3,'{"part_1":{"1":"A","2":"B"}}'), v=>Number(v[0]?.r?.score)===10);
 check('import rescue: duplicate blocked', await imp(T,S2,TOK3,'{}'), denied);
 check('import rescue: student cannot call', await imp(S,S2,'99999999-9999-9999-9999-999999999999','{}'), denied);
-check('import rescue: student outside class blocked', await imp(T,S,'99999999-9999-9999-9999-999999999998','{}'), denied);
+check('import rescue: token chưa từng start_attempt bị chặn', await imp(T,S,'99999999-9999-9999-9999-999999999998','{}'), denied);
+// Đề công khai: học sinh KHÔNG thuộc lớp nào của giáo viên vẫn phải cứu hộ được, miễn là đã
+// thật sự bắt đầu làm đề này (S không có trong class_memberships của CL — chỉ S2 mới có).
+const TOK5='88888888-8888-8888-8888-888888888887';
+await as(S,'authenticated',`select public.start_attempt('${EX}','${TOK5}','HS')`);
+check('import rescue: học sinh ngoài lớp giáo viên vẫn cứu hộ được (đề công khai)', await imp(T,S,TOK5,'{"part_1":{"1":"A","2":"B"}}'), v=>Number(v[0]?.r?.score)===10);
 // ---- Đề sinh tự động có cả 3 phần: server phải chấm khớp với assembleExam ----
 const out = await build({ entryPoints: [new URL('../src/utils/autoGen.ts', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')], bundle: true, format: 'esm', write: false });
 const gen = await import('data:text/javascript;base64,' + Buffer.from(out.outputFiles[0].text).toString('base64'));

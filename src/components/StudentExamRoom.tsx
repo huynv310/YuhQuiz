@@ -13,7 +13,6 @@ import { useAutoSave } from '../hooks/useAutoSave';
 import { logTelemetry, readTelemetry, clearTelemetry } from '../lib/telemetry';
 import { Exam } from '../types/exam';
 import { saveRescue, removeRescue, downloadRescue } from '../lib/rescue';
-import { toCachedPdfUrl } from '../lib/pdfUrl';
 import { SolutionView, hasSolution } from './SolutionView';
 
 interface StudentExamRoomProps {
@@ -419,13 +418,12 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
 
   const getPdfEmbedUrl = () => {
     if (!exam?.pdf_url) return '';
-    const pdfUrl = toCachedPdfUrl(exam.pdf_url);
     // Thêm #view=FitH để đảm bảo các trình duyệt không bắt tải về mà sẽ render PDF
     if (useGoogleViewer) {
-      return `https://docs.google.com/viewer?url=${encodeURIComponent(pdfUrl)}&embedded=true`;
+      return `https://docs.google.com/viewer?url=${encodeURIComponent(exam.pdf_url)}&embedded=true`;
     }
     // Dùng object / iframe trực tiếp với param chuẩn
-    return `${pdfUrl}#view=FitH&zoom=${Math.round(pdfZoom * 100)}&toolbar=0&navpanes=0`;
+    return `${exam.pdf_url}#view=FitH&zoom=${Math.round(pdfZoom * 100)}&toolbar=0&navpanes=0`;
   };
 
   return (

@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { LogoMark } from '../Logo';
-import { UserCircle, Dumbbell, BookOpen, BookMarked, Activity, LogOut, ShieldCheck } from 'lucide-react';
+import { UserCircle, Dumbbell, BookOpen, BookMarked, Activity, LogOut, ShieldCheck, Trophy } from 'lucide-react';
 import { ExamList } from './ExamList';
 import { ProfileView } from '../ProfileView';
 import { PracticeView } from './PracticeView';
+import { GlobalLeaderboard } from '../GlobalLeaderboard';
 
 interface StudentPortalProps {
   currentUser: any;
@@ -15,7 +16,7 @@ interface StudentPortalProps {
   onSwitchToTeacher?: () => void;
 }
 
-type TabType = 'exams' | 'profile' | 'practice' | 'notebook' | 'radar';
+type TabType = 'exams' | 'profile' | 'practice' | 'notebook' | 'radar' | 'leaderboard';
 
 export const StudentPortal: React.FC<StudentPortalProps> = (props) => {
   const [activeTab, setActiveTab] = useState<TabType>('exams');
@@ -28,6 +29,12 @@ export const StudentPortal: React.FC<StudentPortalProps> = (props) => {
         return <ProfileView profile={props.profile} onUpdated={p => props.onProfileUpdated?.(p)} />;
       case 'practice':
         return <PracticeView />;
+      case 'leaderboard':
+        return (
+          <div className="p-4 md:p-8">
+            <GlobalLeaderboard defaultRole="student" bare />
+          </div>
+        );
       case 'notebook':
         return (
           <div className="p-8 flex flex-col items-center justify-center h-full text-center">
@@ -94,6 +101,18 @@ export const StudentPortal: React.FC<StudentPortalProps> = (props) => {
           >
             <Dumbbell className="w-5 h-5 flex-shrink-0" />
             <span className="hidden md:block ml-3">Luyện tập</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('leaderboard')}
+            className={`w-full flex items-center p-3 rounded-xl transition-all ${
+              activeTab === 'leaderboard'
+                ? 'bg-emerald-50 text-emerald-700 font-bold'
+                : 'text-slate-600 hover:bg-white/60 font-medium'
+            }`}
+          >
+            <Trophy className="w-5 h-5 flex-shrink-0" />
+            <span className="hidden md:block ml-3">Xếp Hạng</span>
           </button>
 
           <button

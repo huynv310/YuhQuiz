@@ -13,7 +13,6 @@ import { RescuePanel } from './RescuePanel';
 import { downloadRescue } from '../../lib/rescue';
 import { ExamSearchBar, ExamIdChips, SubjectGroups, filterExams } from '../SubjectGroups';
 import { RankBadge } from '../RankBadge';
-import { GlobalLeaderboard } from '../GlobalLeaderboard';
 import { useMyRank } from '../../hooks/useMyRank';
 
 interface StudentPortalProps {
@@ -33,7 +32,7 @@ export const ExamList: React.FC<StudentPortalProps> = ({
   onLogout,
   onSwitchToTeacher,
 }) => {
-  const [activeTab, setActiveTab] = useState<'exams' | 'classes' | 'history' | 'leaderboard'>('exams');
+  const [activeTab, setActiveTab] = useState<'exams' | 'classes' | 'history'>('exams');
   const [exams, setExams] = useState<any[]>([]);
   const [joinedClasses, setJoinedClasses] = useState<any[]>([]);
   const [submissions, setSubmissions] = useState<any[]>([]);
@@ -294,15 +293,6 @@ export const ExamList: React.FC<StudentPortalProps> = ({
           >
             Tiến độ & Lịch sử thi ({completedSubs.length})
           </button>
-
-          <button
-            onClick={() => setActiveTab('leaderboard')}
-            className={`px-4 py-2 rounded-xl transition-all flex items-center gap-1 ${
-              activeTab === 'leaderboard' ? 'bg-primary text-white shadow-xs' : 'text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            <Trophy className="w-3.5 h-3.5" /> Xếp Hạng
-          </button>
         </div>
 
         {/* PHÂN LOẠI TAB THEO TỪNG LỚP HỌC (YÊU CẦU: CHỌN LỚP ĐỂ XEM ĐỀ & ĐIỂM RIÊNG) */}
@@ -558,9 +548,6 @@ export const ExamList: React.FC<StudentPortalProps> = ({
               </div>
             </div>
           )}
-
-          {/* TAB 4: XẾP HẠNG TOÀN HỆ THỐNG */}
-          {activeTab === 'leaderboard' && <GlobalLeaderboard defaultRole="student" bare />}
 
         </div>
       </div>

@@ -34,6 +34,7 @@ export const CreateExamModal: React.FC<CreateExamModalProps> = ({
   );
   const [duration, setDuration] = useState<number>(examToEdit?.duration_minutes || 90);
   const [pdfUrl, setPdfUrl] = useState(examToEdit?.pdf_url || '');
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -136,7 +137,8 @@ export const CreateExamModal: React.FC<CreateExamModalProps> = ({
     }
   };
 
-  // Upload PDF
+  // Chọn file PDF: chỉ nén cục bộ ở đây, KHÔNG tải lên Storage — việc tải lên thật
+  // dời sang lúc bấm "Tạo đề thi" (uploadPdfFile) để hủy modal / xóa file chọn không để lại rác.
   const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const original = e.target.files?.[0];
     e.target.value = '';
@@ -147,8 +149,8 @@ export const CreateExamModal: React.FC<CreateExamModalProps> = ({
       return;
     }
 
-    if (original.size > 15 * 1024 * 1024) {
-      alert('Tệp PDF vượt quá 15MB. Vui lòng nén file hoặc dán link Google Drive.');
+    if (original.size > 100 * 1024 * 1024) {
+      alert('Tệp PDF vượt quá 100MB. Vui lòng nén file hoặc dán link Google Drive.');
       return;
     }
 
@@ -171,32 +173,39 @@ export const CreateExamModal: React.FC<CreateExamModalProps> = ({
         }
       }
 
-      // Tên = SHA-256 nội dung: cùng nội dung chỉ lưu 1 bản, và không bao giờ bị ghi đè
-      // nên cache dài hạn an toàn.
-      const digest = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
-      const hash = Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
-      const filePath = `exams/${hash}.pdf`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('exam-pdfs')
-        .upload(filePath, file, { cacheControl: '31536000', upsert: false, contentType: 'application/pdf' });
-
-      // Tệp trùng nội dung đã có sẵn → dùng lại, không phải lỗi
-      if (uploadError && !/exists|Duplicate|409/i.test(`${uploadError.message} ${(uploadError as any).statusCode}`)) {
-        throw uploadError;
-      }
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('exam-pdfs')
-        .getPublicUrl(filePath);
-
-      setPdfUrl(publicUrl);
+      setPdfFile(file);
+      setPdfUrl('');
     } catch (err: any) {
-      alert('Lỗi tải file: ' + err.message);
+      alert('Lỗi xử lý file: ' + err.message);
     } finally {
       setIsUploading(false);
       setUploadStatus('');
     }
+  };
+
+  const handleClearPdfFile = () => setPdfFile(null);
+
+  // Chỉ thật sự ghi vào bucket exam-pdfs khi giáo viên bấm "Tạo đề thi" — gọi từ handleSubmit.
+  const uploadPdfFile = async (file: File): Promise<string> => {
+    // Tên = SHA-256 nội dung: cùng nội dung chỉ lưu 1 bản, và không bao giờ bị ghi đè
+    // nên cache dài hạn an toàn.
+    const digest = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
+    const hash = Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+    const filePath = `exams/${hash}.pdf`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('exam-pdfs')
+      .upload(filePath, file, { cacheControl: '31536000', upsert: false, contentType: 'application/pdf' });
+
+    // Tệp trùng nội dung đã có sẵn → dùng lại, không phải lỗi
+    if (uploadError && !/exists|Duplicate|409/i.test(`${uploadError.message} ${(uploadError as any).statusCode}`)) {
+      throw uploadError;
+    }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('exam-pdfs')
+      .getPublicUrl(filePath);
+    return publicUrl;
   };
 
   // Phân tích và cập nhật ngay vào bảng đáp án bên dưới
@@ -300,7 +309,7 @@ export const CreateExamModal: React.FC<CreateExamModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !pdfUrl.trim()) {
+    if (!title.trim() || (!pdfUrl.trim() && !pdfFile)) {
       alert('Vui lòng nhập tên đề thi và cung cấp file PDF!');
       return;
     }
@@ -325,6 +334,17 @@ export const CreateExamModal: React.FC<CreateExamModalProps> = ({
 
     setIsSubmitting(true);
     try {
+      // Chỉ ghi file lên Storage khi thật sự bấm tạo/lưu đề — hủy modal trước đó sẽ không để lại rác.
+      let finalPdfUrl = pdfUrl.trim();
+      if (pdfFile) {
+        setUploadStatus('Đang lưu file đề...');
+        try {
+          finalPdfUrl = await uploadPdfFile(pdfFile);
+        } finally {
+          setUploadStatus('');
+        }
+      }
+
       const configPayload = {
         sections: [
           { id: 'part_1', title: 'Trắc nghiệm 4 lựa chọn', question_count: p1Count, total_score: p1TotalScore },
@@ -340,7 +360,7 @@ export const CreateExamModal: React.FC<CreateExamModalProps> = ({
         teacher_name: teacherName.trim() || 'Thầy Nguyễn Văn A',
         created_by: currentUser?.id || null,
         duration_minutes: duration,
-        pdf_url: pdfUrl.trim(),
+        pdf_url: finalPdfUrl,
         config: configPayload,
         start_at: hasTimeLimit && startAt ? new Date(startAt).toISOString() : null,
         end_at: hasTimeLimit && endAt ? new Date(endAt).toISOString() : null,
@@ -708,21 +728,33 @@ export const CreateExamModal: React.FC<CreateExamModalProps> = ({
           <div>
             <label className="font-bold text-gray-700 block mb-1">File Đề thi PDF *</label>
             <div className="flex space-x-2">
-              <input
-                type="text"
-                required
-                placeholder="Dán link file PDF (Google Drive, URL) hoặc tải file..."
-                value={pdfUrl}
-                onChange={(e) => setPdfUrl(e.target.value)}
-                className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-primary"
-              />
+              {pdfFile ? (
+                <div className="flex-1 flex items-center justify-between px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl">
+                  <span className="truncate">
+                    {pdfFile.name} ({(pdfFile.size / 1048576).toFixed(1)}MB) — sẽ lưu khi bấm "Tạo đề thi"
+                  </span>
+                  <button type="button" onClick={handleClearPdfFile} className="text-gray-400 hover:text-red-500 flex-shrink-0 ml-2">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <input
+                  type="text"
+                  placeholder="Dán link file PDF (Google Drive, URL) hoặc tải file..."
+                  value={pdfUrl}
+                  onChange={(e) => setPdfUrl(e.target.value)}
+                  className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-primary"
+                />
+              )}
               <label className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-3.5 py-2 rounded-xl cursor-pointer flex items-center space-x-1.5 flex-shrink-0">
                 <Upload className="w-3.5 h-3.5" />
-                <span>{isUploading ? (uploadStatus || 'Đang tải...') : 'Upload PDF'}</span>
+                <span>{isUploading ? (uploadStatus || 'Đang xử lý...') : 'Upload PDF'}</span>
                 <input type="file" accept="application/pdf" onChange={handlePdfUpload} className="hidden" />
               </label>
             </div>
-            <p className="text-[11px] text-gray-500 mt-1">Nên dưới 3MB. Đề nặng hơn sẽ được tự động nén.</p>
+            <p className="text-[11px] text-gray-500 mt-1">
+              Nên dưới 3MB (đề nặng hơn sẽ được tự động nén), tối đa 100MB. File chỉ thật sự được lưu khi bạn bấm "Tạo đề thi".
+            </p>
           </div>
 
           {/* HÀNG 7: DÁN ĐÁP ÁN HÀNG LOẠT */}
@@ -917,11 +949,11 @@ PHẦN III: 1:1,5 2:1.5 3:-1 4:-1 5:-1 6:-1`}
             </button>
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || isUploading}
               className="px-6 py-2 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold shadow-sm flex items-center space-x-1.5"
             >
               {isSubmitting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-              <span>{isEditing ? 'Lưu cập nhật kỳ thi' : 'Tạo kỳ thi ngay'}</span>
+              <span>{isSubmitting ? (uploadStatus || 'Đang lưu...') : (isEditing ? 'Lưu cập nhật kỳ thi' : 'Tạo kỳ thi ngay')}</span>
             </button>
           </div>
         </form>

@@ -76,11 +76,11 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = (props) => {
         {rank && (
           <button
             onClick={() => setActiveTab('leaderboard')}
-            className="px-3 md:px-4 py-2.5 border-b border-slate-100 flex items-center md:justify-between justify-center gap-2 hover:bg-white/60 transition-all"
+            className="w-full px-3 md:px-4 py-2.5 border-b border-slate-100 flex items-center justify-center md:justify-start hover:bg-white/60 transition-all"
             title="Xem bảng xếp hạng toàn hệ thống"
           >
             <RankBadge tier={rank.rank_tier} size={30} showLabel={false} />
-            <div className="hidden md:block min-w-0 text-left">
+            <div className="hidden md:block min-w-0 text-left ml-3">
               <p className="text-xs font-bold text-slate-700 truncate">{rank.rank_tier}</p>
               <p className="text-[11px] text-slate-400">{rank.exams_count ?? 0} đề đã đóng góp</p>
             </div>

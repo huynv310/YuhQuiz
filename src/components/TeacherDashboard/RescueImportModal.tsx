@@ -30,26 +30,47 @@ export const RescueImportModal: React.FC<Props> = ({ exam, onClose, onDone }) =>
   const [students, setStudents] = useState<Student[]>([]);
   const [rows, setRows] = useState<Row[]>([]);
   const [busy, setBusy] = useState(false);
+  const [lookupCode, setLookupCode] = useState('');
+  const [lookupBusy, setLookupBusy] = useState(false);
+  const [lookupError, setLookupError] = useState('');
 
-  useEffect(() => {
-    (async () => {
-      // Danh sách phải là THÍ SINH ĐÃ THAM GIA THI đề này (có phiên start_attempt trong
-      // submissions), KHÔNG phải học sinh trong lớp giáo viên quản lý — đề công khai thì học
-      // sinh ngoài lớp vẫn làm được, và họ mới là người cần cứu hộ khi mất mạng.
-      const { data: subs } = await supabase
-        .from('submissions')
-        .select('student_id, student_name, class_name')
-        .eq('exam_id', exam.id)
-        .eq('status', 'in_progress');
-      const seen = new Map<string, Student>();
-      (subs || []).forEach((s: any) => {
-        if (s.student_id && !seen.has(s.student_id)) {
-          seen.set(s.student_id, { id: s.student_id, name: s.student_name || '(không tên)', className: s.class_name || '' });
-        }
-      });
-      setStudents(Array.from(seen.values()));
-    })();
-  }, [exam.id]);
+  const loadStudents = async () => {
+    // Danh sách phải là THÍ SINH ĐÃ THAM GIA THI đề này (có phiên start_attempt trong
+    // submissions, ở mọi trạng thái), KHÔNG phải học sinh trong lớp giáo viên quản lý — đề
+    // công khai thì học sinh ngoài lớp vẫn làm được, và họ mới là người cần cứu hộ khi mất mạng.
+    const { data: subs } = await supabase
+      .from('submissions')
+      .select('student_id, student_name, class_name')
+      .eq('exam_id', exam.id)
+      .in('status', ['in_progress', 'submitted']);
+    const seen = new Map<string, Student>();
+    (subs || []).forEach((s: any) => {
+      if (s.student_id && !seen.has(s.student_id)) {
+        seen.set(s.student_id, { id: s.student_id, name: s.student_name || '(không tên)', className: s.class_name || '' });
+      }
+    });
+    setStudents(Array.from(seen.values()));
+  };
+
+  useEffect(() => { loadStudents(); }, [exam.id]);
+
+  // Học sinh mất mạng NGAY TỪ ĐẦU thì start_attempt() chưa từng tới được máy chủ — không để
+  // lại dấu vết nào trong submissions nên không có trong danh sách trên. Cho giáo viên tra
+  // đúng học sinh bằng mã số (hiện trong hồ sơ cá nhân của học sinh) để vẫn chọn được.
+  const lookupByCode = async () => {
+    if (!lookupCode.trim()) return;
+    setLookupBusy(true);
+    setLookupError('');
+    const { data, error } = await supabase.rpc('teacher_lookup_student_by_code', { p_code: lookupCode.trim() });
+    setLookupBusy(false);
+    if (error || !data || data.length === 0) {
+      setLookupError('Không tìm thấy học sinh với mã này');
+      return;
+    }
+    const found = data[0];
+    setStudents(prev => prev.some(s => s.id === found.id) ? prev : [...prev, { id: found.id, name: found.full_name, className: found.school || '' }]);
+    setLookupCode('');
+  };
 
   const matchStudent = (name?: string): string => {
     if (!name) return '';
@@ -116,6 +137,18 @@ export const RescueImportModal: React.FC<Props> = ({ exam, onClose, onDone }) =>
           <input type="file" multiple accept=".yuhquiz,application/json" className="hidden"
                  onChange={e => handleFiles(e.target.files)} />
         </label>
+
+        <div className="mt-3 flex items-center gap-2">
+          <input value={lookupCode} onChange={e => { setLookupCode(e.target.value); setLookupError(''); }}
+                 onKeyDown={e => e.key === 'Enter' && lookupByCode()}
+                 placeholder="Không thấy học sinh? Nhập mã số HS (VD: HS3F7K2A)…"
+                 className="flex-1 border rounded-lg px-2 py-1.5 text-sm" />
+          <button onClick={lookupByCode} disabled={lookupBusy || !lookupCode.trim()}
+                  className="px-3 py-1.5 rounded-lg border text-sm font-semibold hover:bg-gray-50 disabled:opacity-50">
+            {lookupBusy ? 'Đang tìm…' : 'Tìm'}
+          </button>
+        </div>
+        {lookupError && <p className="text-xs text-red-600 mt-1">{lookupError}</p>}
 
         {rows.length > 0 && (
           <table className="w-full text-sm mt-4">

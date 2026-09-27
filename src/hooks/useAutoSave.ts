@@ -88,18 +88,39 @@ export function useAutoSave(
     })();
   }, [examId, sessionToken, studentName, className, isSubmitted, studentId]);
 
-  // Ghi nhận giờ bắt đầu ở server (để server kiểm tra thời lượng khi nộp)
+  // Ghi nhận giờ bắt đầu ở server (để server kiểm tra thời lượng khi nộp, và để giáo viên
+  // cứu hộ được nếu mất mạng giữa chừng). Gọi 1 lần lúc mất mạng thoáng qua ngay khi mở đề sẽ
+  // thất bại và không tự thử lại — thử lại định kỳ tới khi thành công, để một lần mất mạng
+  // ngắn (rồi có mạng lại trong lúc làm bài) vẫn kịp ghi được dòng submissions.
   useEffect(() => {
     if (!examId || !sessionToken || isSubmitted) return;
-    supabase
-      .rpc('start_attempt', {
-        p_exam_id: examId,
-        p_session_token: sessionToken,
-        p_student_name: studentName,
-        p_class_name: className,
-      })
-      .then(() => undefined, () => undefined);
-  }, [examId, sessionToken]);
+    let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const tryStart = () => {
+      supabase
+        .rpc('start_attempt', {
+          p_exam_id: examId,
+          p_session_token: sessionToken,
+          p_student_name: studentName,
+          p_class_name: className,
+        })
+        .then(
+          ({ error }) => {
+            if (!cancelled && error) retryTimer = setTimeout(tryStart, 15000);
+          },
+          () => {
+            if (!cancelled) retryTimer = setTimeout(tryStart, 15000);
+          }
+        );
+    };
+    tryStart();
+
+    return () => {
+      cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
+    };
+  }, [examId, sessionToken, isSubmitted]);
 
   useEffect(() => {
     if (isSubmitted) {

@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Trophy, Loader2, GraduationCap, Users } from 'lucide-react';
+import { Trophy, Loader2, GraduationCap, Users, Timer } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { RankIcon, rankColor } from './RankBadge';
+import { useSeasonCountdown } from '../hooks/useSeasonCountdown';
 
 interface TeacherRow {
   full_name: string;
@@ -52,6 +53,7 @@ export const GlobalLeaderboard: React.FC<GlobalLeaderboardProps> = ({ defaultRol
   const [teachers, setTeachers] = useState<TeacherRow[] | null>(null);
   const [students, setStudents] = useState<StudentRow[] | null>(null);
   const [loading, setLoading] = useState(false);
+  const { label: countdownLabel, resetDate } = useSeasonCountdown();
 
   useEffect(() => {
     let alive = true;
@@ -79,14 +81,23 @@ export const GlobalLeaderboard: React.FC<GlobalLeaderboardProps> = ({ defaultRol
   return (
     <div className={dense || bare ? '' : 'max-w-5xl mx-auto w-full px-4 md:px-8'}>
       <div className={dense ? 'p-4 md:p-6' : bare ? '' : 'py-6'}>
-        <div className="flex items-center gap-2 mb-1">
-          <Trophy className="w-5 h-5 text-amber-500" />
-          <h2 className="font-extrabold text-lg text-slate-900">Bảng Xếp Hạng Toàn Hệ Thống</h2>
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+          <div className="flex items-center gap-2">
+            <Trophy className="w-5 h-5 text-amber-500" />
+            <h2 className="font-extrabold text-lg text-slate-900">Bảng Xếp Hạng Toàn Hệ Thống</h2>
+          </div>
+          <div
+            className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 bg-slate-50 border border-slate-200 rounded-full px-3 py-1"
+            title={`Mùa xếp hạng hiện tại kết thúc vào ${resetDate.toLocaleDateString('vi-VN')} — bảng xếp hạng sẽ làm mới, dữ liệu mùa này vẫn được lưu lại.`}
+          >
+            <Timer className="w-3.5 h-3.5 text-slate-400" />
+            Mùa mới sau: <span className="text-primary font-mono">{countdownLabel}</span>
+          </div>
         </div>
         <p className="text-xs text-slate-400 mb-4">
           {tab === 'teacher'
-            ? 'Xếp theo số đề thi chính thức đã đóng góp và có học sinh nộp bài.'
-            : 'Xếp theo điểm ưu tiên số lượng đề đã làm — làm càng nhiều đề, điểm xếp hạng càng sát điểm trung bình thật.'}
+            ? 'Xếp theo số đề thi chính thức đã đóng góp và có học sinh nộp bài trong năm học hiện tại.'
+            : 'Xếp theo điểm ưu tiên số lượng đề đã làm trong năm học hiện tại — làm càng nhiều đề, điểm xếp hạng càng sát điểm trung bình thật.'}
         </p>
 
         <div className="inline-flex bg-slate-100 rounded-xl p-1 mb-4 gap-1">

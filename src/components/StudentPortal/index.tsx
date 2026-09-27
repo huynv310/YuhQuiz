@@ -67,9 +67,9 @@ export const StudentPortal: React.FC<StudentPortalProps> = (props) => {
       <aside className="glass-panel !rounded-none !border-y-0 !border-l-0 w-20 md:w-64 flex flex-col transition-all shrink-0 z-40">
         
         {/* LOGO */}
-        <div className="h-20 flex items-center justify-center md:justify-start md:px-6 border-b border-slate-100">
-          <LogoMark className="w-10 h-10 shadow-sm rounded-2xl" />
-          <div className="hidden md:block ml-3">
+        <div className="h-16 flex items-center justify-center md:justify-start md:px-6 border-b border-slate-100">
+          <LogoMark className="w-8 h-8" />
+          <div className="hidden md:block ml-3 leading-tight">
             <span className="font-heading font-extrabold text-lg tracking-tight text-slate-800 block leading-tight">
               YuhQuiz
             </span>
@@ -78,12 +78,12 @@ export const StudentPortal: React.FC<StudentPortalProps> = (props) => {
         </div>
 
         {/* MENU ITEMS */}
-        <nav className="flex-1 py-6 px-3 space-y-2 overflow-y-auto">
+        <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
           <button
             onClick={() => setActiveTab('exams')}
-            className={`w-full flex items-center p-3 rounded-xl transition-all ${
-              activeTab === 'exams' 
-                ? 'bg-emerald-50 text-emerald-700 font-bold' 
+            className={`w-full flex items-center p-2.5 rounded-xl transition-all ${
+              activeTab === 'exams'
+                ? 'bg-emerald-50 text-emerald-700 font-bold'
                 : 'text-slate-600 hover:bg-white/60 font-medium'
             }`}
           >
@@ -93,7 +93,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = (props) => {
 
           <button
             onClick={() => setActiveTab('practice')}
-            className={`w-full flex items-center p-3 rounded-xl transition-all ${
+            className={`w-full flex items-center p-2.5 rounded-xl transition-all ${
               activeTab === 'practice'
                 ? 'bg-emerald-50 text-emerald-700 font-bold'
                 : 'text-slate-600 hover:bg-white/60 font-medium'
@@ -105,7 +105,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = (props) => {
 
           <button
             onClick={() => setActiveTab('leaderboard')}
-            className={`w-full flex items-center p-3 rounded-xl transition-all ${
+            className={`w-full flex items-center p-2.5 rounded-xl transition-all ${
               activeTab === 'leaderboard'
                 ? 'bg-emerald-50 text-emerald-700 font-bold'
                 : 'text-slate-600 hover:bg-white/60 font-medium'
@@ -117,9 +117,9 @@ export const StudentPortal: React.FC<StudentPortalProps> = (props) => {
 
           <button
             onClick={() => setActiveTab('notebook')}
-            className={`w-full flex items-center p-3 rounded-xl transition-all ${
-              activeTab === 'notebook' 
-                ? 'bg-emerald-50 text-emerald-700 font-bold' 
+            className={`w-full flex items-center p-2.5 rounded-xl transition-all ${
+              activeTab === 'notebook'
+                ? 'bg-emerald-50 text-emerald-700 font-bold'
                 : 'text-slate-600 hover:bg-white/60 font-medium'
             }`}
           >
@@ -129,9 +129,9 @@ export const StudentPortal: React.FC<StudentPortalProps> = (props) => {
 
           <button
             onClick={() => setActiveTab('radar')}
-            className={`w-full flex items-center p-3 rounded-xl transition-all ${
-              activeTab === 'radar' 
-                ? 'bg-emerald-50 text-emerald-700 font-bold' 
+            className={`w-full flex items-center p-2.5 rounded-xl transition-all ${
+              activeTab === 'radar'
+                ? 'bg-emerald-50 text-emerald-700 font-bold'
                 : 'text-slate-600 hover:bg-white/60 font-medium'
             }`}
           >
@@ -140,7 +140,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = (props) => {
           </button>
           <button
             onClick={() => setActiveTab('profile')}
-            className={`w-full flex items-center p-3 rounded-xl transition-all ${
+            className={`w-full flex items-center p-2.5 rounded-xl transition-all ${
               activeTab === 'profile'
                 ? 'bg-emerald-50 text-emerald-700 font-bold'
                 : 'text-slate-600 hover:bg-white/60 font-medium'

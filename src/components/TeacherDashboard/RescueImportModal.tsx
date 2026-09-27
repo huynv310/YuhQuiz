@@ -13,14 +13,12 @@ interface Student { id: string; name: string; className: string }
 interface Row {
   fileName: string;
   error?: string;
-  sessionToken?: string;
+  file?: unknown;
   studentNameInFile?: string;
   classNameInFile?: string;
-  answers?: unknown;
-  cheatCount?: number;
-  totalAwaySecs?: number;
   studentId: string;
   result?: string;
+  fraud?: boolean;
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -84,12 +82,12 @@ export const RescueImportModal: React.FC<Props> = ({ exam, onClose, onDone }) =>
     for (const f of Array.from(files)) {
       try {
         const j = JSON.parse(await f.text());
-        if (j.examId !== exam.id && j.examId !== (exam as any).short_id) throw new Error('File thuộc đề khác');
+        if (j.v !== 2) throw new Error('File không đúng định dạng mã hóa mới — hãy nhờ học sinh xuất lại file');
+        if (j.examId && j.examId !== exam.id && j.examId !== (exam as any).short_id) throw new Error('File thuộc đề khác');
         if (typeof j.sessionToken !== 'string' || !UUID_RE.test(j.sessionToken)) throw new Error('Thiếu sessionToken hợp lệ');
-        if (!j.answers || typeof j.answers !== 'object') throw new Error('Thiếu câu trả lời');
+        if (!j.iv || !j.ct || !j.mac) throw new Error('File thiếu dữ liệu mã hóa/chữ ký');
         next.push({
-          fileName: f.name, sessionToken: j.sessionToken, studentNameInFile: j.studentName, classNameInFile: j.className,
-          answers: j.answers, cheatCount: Number(j.cheatCount) || 0, totalAwaySecs: Number(j.totalAwaySecs) || 0,
+          fileName: f.name, file: j, studentNameInFile: j.studentName, classNameInFile: j.className,
           studentId: matchStudent(j.studentName),
         });
       } catch (e: any) {
@@ -106,21 +104,27 @@ export const RescueImportModal: React.FC<Props> = ({ exam, onClose, onDone }) =>
     setBusy(true);
     const out: Row[] = [];
     for (const r of rows) {
-      if (r.error || !r.studentId || r.result?.startsWith('✓')) { out.push(r); continue; }
+      if (r.error || !r.studentId || r.result?.startsWith('✓') || r.fraud) { out.push(r); continue; }
       const classNameFromRoster = students.find(s => s.id === r.studentId)?.className;
+      // Server tự giải mã + xác minh chữ ký bằng rescue_secret lưu ở submissions — trình duyệt
+      // giáo viên không đọc được nội dung thật của file, chỉ chuyển tiếp nguyên vẹn.
       const { data, error } = await supabase.rpc('teacher_import_rescue', {
-        p_exam_id: exam.id, p_student_id: r.studentId, p_session_token: r.sessionToken,
-        p_answers: r.answers, p_cheat_count: r.cheatCount, p_total_away_seconds: r.totalAwaySecs,
+        p_exam_id: exam.id, p_student_id: r.studentId, p_file: r.file,
         p_class_name: r.classNameInFile || classNameFromRoster || null,
       });
-      out.push({ ...r, result: error ? `✗ ${error.message}` : `✓ ${data?.score} điểm` });
+      if (error) { out.push({ ...r, result: `✗ ${error.message}` }); continue; }
+      if (data?.status === 'fraud_detected') {
+        out.push({ ...r, result: '⚠ Nghi vấn gian lận — 0 điểm (file bị sửa đổi)', fraud: true });
+      } else {
+        out.push({ ...r, result: `✓ ${data?.score} điểm` });
+      }
     }
     setRows(out);
     setBusy(false);
-    if (out.some(r => r.result?.startsWith('✓'))) onDone();
+    if (out.some(r => r.result?.startsWith('✓') || r.fraud)) onDone();
   };
 
-  const ready = rows.filter(r => !r.error && r.studentId && !r.result?.startsWith('✓')).length;
+  const ready = rows.filter(r => !r.error && r.studentId && !r.result).length;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center yq-overlay p-4">
@@ -168,7 +172,7 @@ export const RescueImportModal: React.FC<Props> = ({ exam, onClose, onDone }) =>
                       </select>
                     )}
                   </td>
-                  <td className={r.result?.startsWith('✓') ? 'text-emerald-600' : 'text-red-600'}>{r.result}</td>
+                  <td className={r.result?.startsWith('✓') ? 'text-emerald-600' : r.fraud ? 'text-amber-600 font-bold' : 'text-red-600'}>{r.result}</td>
                 </tr>
               ))}
             </tbody>

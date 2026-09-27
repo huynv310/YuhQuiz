@@ -2,10 +2,12 @@ import { PGlite } from '@electric-sql/pglite';
 import { uuid_ossp } from '@electric-sql/pglite/contrib/uuid_ossp';
 import { pg_trgm } from '@electric-sql/pglite/contrib/pg_trgm';
 import { unaccent } from '@electric-sql/pglite/contrib/unaccent';
+import { pgcrypto } from '@electric-sql/pglite/contrib/pgcrypto';
 import fs from 'fs';
 import { build } from 'esbuild';
+import crypto from 'node:crypto';
 const root=new URL('../supabase/',import.meta.url);
-const db=new PGlite({extensions:{uuid_ossp,pg_trgm,unaccent}});
+const db=new PGlite({extensions:{uuid_ossp,pg_trgm,unaccent,pgcrypto}});
 await db.exec(`
 create schema auth; create schema storage;
 create table auth.users(id uuid primary key default gen_random_uuid(), email text, raw_user_meta_data jsonb default '{}');
@@ -75,19 +77,48 @@ check('teacher leaderboard: hiện đúng số đề', await as(S2,'authenticate
 check('teacher reads own keys', await as(T,'authenticated','select part_1_keys from exam_answer_keys'), v=>v.length===1);
 check('teacher sees submissions', await as(T,'authenticated','select count(*)::int c from submissions'), v=>v[0].c===1);
 check('other student sees no submissions', await as(S2,'authenticated','select count(*)::int c from submissions'), v=>v[0].c===0);
-const imp=(uid,stu,tok,ans)=>as(uid,'authenticated',`select public.teacher_import_rescue('${EX}','${stu}','${tok}','${ans}',2,30) r`);
+// File cứu hộ giờ mã hóa (AES-256-CBC) + ký (HMAC-SHA256) bằng rescue_secret cấp lúc
+// start_attempt() — mirror đúng thuật toán client (src/lib/rescue.ts) bằng Node crypto để build
+// file test, server tự giải mã/xác minh (không có bước "client tự giải mã" nào ở giáo viên).
+const sha256 = s => crypto.createHash('sha256').update(s, 'utf8').digest();
+const encFile = (secret, { sessionToken, studentName = '', className = '', answers = {}, cheatCount = 0, totalAwaySecs = 0 }) => {
+  const payload = JSON.stringify({ answers, cheatCount, totalAwaySecs });
+  const iv = crypto.randomBytes(16);
+  const cipher = crypto.createCipheriv('aes-256-cbc', sha256('enc|' + secret), iv);
+  const ct = Buffer.concat([cipher.update(payload, 'utf8'), cipher.final()]);
+  const aad = `${sessionToken}|${studentName}|${className}`;
+  const mac = crypto.createHmac('sha256', sha256('mac|' + secret)).update(Buffer.concat([iv, ct, Buffer.from(aad, 'utf8')])).digest();
+  return { v: 2, examId: EX, sessionToken, studentName, className, iv: iv.toString('base64'), ct: ct.toString('base64'), mac: mac.toString('base64') };
+};
+const startAttempt = async (uid, tok, name) => (await as(uid, 'authenticated', `select public.start_attempt('${EX}','${tok}','${name}') s`))[0]?.s?.rescue_secret;
+const impFile = (uid, stu, file) => as(uid, 'authenticated', `select public.teacher_import_rescue('${EX}','${stu}',$json$${JSON.stringify(file)}$json$::jsonb,null) r`);
+
 // Cứu hộ giờ đòi hỏi học sinh ĐÃ start_attempt thật với đúng token đó (không còn dựa vào có
 // thuộc lớp giáo viên hay không) — mô phỏng đúng học sinh mất mạng giữa chừng.
-await as(S2,'authenticated',`select public.start_attempt('${EX}','${TOK3}','HS2')`);
-check('import rescue: teacher, own student', await imp(T,S2,TOK3,'{"part_1":{"1":"A","2":"B"}}'), v=>Number(v[0]?.r?.score)===10);
-check('import rescue: duplicate blocked', await imp(T,S2,TOK3,'{}'), denied);
-check('import rescue: student cannot call', await imp(S,S2,'99999999-9999-9999-9999-999999999999','{}'), denied);
-check('import rescue: token chưa từng start_attempt bị chặn', await imp(T,S,'99999999-9999-9999-9999-999999999998','{}'), denied);
+const secret3 = await startAttempt(S2, TOK3, 'HS2');
+const file3 = encFile(secret3, { sessionToken: TOK3, studentName: 'HS2', answers: { part_1: { 1: 'A', 2: 'B' } } });
+check('import rescue: teacher, own student', await impFile(T, S2, file3), v => Number(v[0]?.r?.score) === 10);
+check('import rescue: duplicate blocked', await impFile(T, S2, file3), denied);
+check('import rescue: student cannot call', await impFile(S, S2, file3), denied);
+check('import rescue: token chưa từng start_attempt bị chặn', await impFile(T, S, encFile('x', { sessionToken: '99999999-9999-9999-9999-999999999998' })), denied);
 // Đề công khai: học sinh KHÔNG thuộc lớp nào của giáo viên vẫn phải cứu hộ được, miễn là đã
 // thật sự bắt đầu làm đề này (S không có trong class_memberships của CL — chỉ S2 mới có).
 const TOK5='88888888-8888-8888-8888-888888888887';
-await as(S,'authenticated',`select public.start_attempt('${EX}','${TOK5}','HS')`);
-check('import rescue: học sinh ngoài lớp giáo viên vẫn cứu hộ được (đề công khai)', await imp(T,S,TOK5,'{"part_1":{"1":"A","2":"B"}}'), v=>Number(v[0]?.r?.score)===10);
+const secret5 = await startAttempt(S, TOK5, 'HS');
+const file5 = encFile(secret5, { sessionToken: TOK5, studentName: 'HS', answers: { part_1: { 1: 'A', 2: 'B' } } });
+check('import rescue: học sinh ngoài lớp giáo viên vẫn cứu hộ được (đề công khai)', await impFile(T, S, file5), v => Number(v[0]?.r?.score) === 10);
+
+// File cứu hộ bị sửa đổi thủ công (đổi 1 ký tự đáp án mã hóa) → chữ ký sai → tự động 0 điểm +
+// gắn cờ flagged_fraud, KHÔNG âm thầm từ chối và KHÔNG chấm theo answers giả mạo.
+const TOK6='88888888-8888-8888-8888-888888888886';
+const secret6 = await startAttempt(S, TOK6, 'HS');
+const file6 = encFile(secret6, { sessionToken: TOK6, studentName: 'HS', answers: { part_1: { 1: 'A', 2: 'B' } } });
+const ctBytes6 = Buffer.from(file6.ct, 'base64'); ctBytes6[0] ^= 1;
+const tampered6 = { ...file6, ct: ctBytes6.toString('base64') };
+check('import rescue: file bị sửa đổi → 0 điểm + gắn cờ nghi vấn (không chấm theo answers giả)',
+  await impFile(T, S, tampered6), v => v[0]?.r?.status === 'fraud_detected' && Number(v[0]?.r?.score) === 0);
+check('import rescue: bài bị gắn cờ flagged_fraud trong submissions',
+  await as(T, 'authenticated', `select flagged_fraud from submissions where session_token='${TOK6}'`), v => v[0]?.flagged_fraud === true);
 // ---- Đề sinh tự động có cả 3 phần: server phải chấm khớp với assembleExam ----
 const out = await build({ entryPoints: [new URL('../src/utils/autoGen.ts', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')], bundle: true, format: 'esm', write: false });
 const gen = await import('data:text/javascript;base64,' + Buffer.from(out.outputFiles[0].text).toString('base64'));
@@ -123,7 +154,7 @@ check('storage: teacher deletes own file', await as(T, 'authenticated', `delete 
 check('client UPDATE submissions is blocked for teacher', await as(T,'authenticated',`update submissions set score=10 where exam_id='${EX}'`), denied);
 await db.exec(`reset role; update exam_answer_keys set part_1_keys='{"1":"A","2":"C"}' where exam_id='${EX}'`);
 check('regrade all: new keys applied (A,C vs A,C = 10)', await as(T,'authenticated',`select public.teacher_regrade('${EX}') r`), v => v[0]?.r?.count >= 1);
-check('regrade updated stored score', await as(T,'authenticated',`select score from submissions where exam_id='${EX}' and student_id='${S}'`), v => Number(v[0].score) === 10 || Number(v[0].score) === 5);
+check('regrade updated stored score', await as(T,'authenticated',`select score from submissions where exam_id='${EX}' and session_token='${TOK}'`), v => Number(v[0].score) === 10 || Number(v[0].score) === 5);
 check('regrade: student cannot call', await as(S,'authenticated',`select public.teacher_regrade('${EX}')`), denied);
 const subId = (await db.query(`select id from submissions where exam_id='${EX}' and student_id='${S}'`)).rows[0].id;
 check('regrade single returns score', await as(T,'authenticated',`select public.teacher_regrade('${EX}','${subId}') r`), v => v[0]?.r?.score !== null && v[0]?.r?.count === 1);

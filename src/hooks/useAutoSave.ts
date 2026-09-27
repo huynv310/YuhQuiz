@@ -106,8 +106,10 @@ export function useAutoSave(
           p_class_name: className,
         })
         .then(
-          ({ error }) => {
-            if (!cancelled && error) retryTimer = setTimeout(tryStart, 15000);
+          ({ data, error }) => {
+            if (cancelled) return;
+            if (error) { retryTimer = setTimeout(tryStart, 15000); return; }
+            if (data?.rescue_secret) saveRescue({ examId, sessionToken, rescueSecret: data.rescue_secret });
           },
           () => {
             if (!cancelled) retryTimer = setTimeout(tryStart, 15000);

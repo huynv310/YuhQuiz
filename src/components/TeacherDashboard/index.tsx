@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { UserCircle, BookOpen, Database, BarChart3, Settings, LogOut, ArrowLeft } from 'lucide-react';
+import { UserCircle, BookOpen, Database, BarChart3, Settings, LogOut, ArrowLeft, Trophy } from 'lucide-react';
 import { ExamManager } from './ExamManager';
 import { ProfileView } from '../ProfileView';
 import { QuestionBank } from './QuestionBank';
 import { LogoMark } from '../Logo';
 import { RankBadge } from '../RankBadge';
+import { GlobalLeaderboard } from '../GlobalLeaderboard';
 import { useMyRank } from '../../hooks/useMyRank';
 
 interface TeacherDashboardProps {
@@ -17,7 +18,7 @@ interface TeacherDashboardProps {
   onSwitchToStudentView?: () => void;
 }
 
-type TabType = 'exams' | 'profile' | 'question_bank' | 'stats' | 'settings';
+type TabType = 'exams' | 'profile' | 'question_bank' | 'stats' | 'settings' | 'leaderboard';
 
 export const TeacherDashboard: React.FC<TeacherDashboardProps> = (props) => {
   const [activeTab, setActiveTab] = useState<TabType>('exams');
@@ -29,6 +30,8 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = (props) => {
         return <ExamManager {...props} />;
       case 'question_bank':
         return <QuestionBank currentUser={props.currentUser} />;
+      case 'leaderboard':
+        return <GlobalLeaderboard defaultRole="teacher" dense />;
       case 'profile':
         return <ProfileView profile={props.profile} onUpdated={p => props.onProfileUpdated?.(p)} />;
       case 'stats':
@@ -67,22 +70,26 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = (props) => {
 
         {/* Ô NHỎ HIỂN THỊ RANK ĐÓNG GÓP */}
         {rank && (
-          <div className="px-3 md:px-4 py-3 border-b border-slate-100 flex items-center md:justify-between justify-center gap-2">
+          <button
+            onClick={() => setActiveTab('leaderboard')}
+            className="px-3 md:px-4 py-2.5 border-b border-slate-100 flex items-center md:justify-between justify-center gap-2 hover:bg-white/60 transition-all"
+            title="Xem bảng xếp hạng toàn hệ thống"
+          >
             <RankBadge tier={rank.rank_tier} size={30} showLabel={false} />
-            <div className="hidden md:block min-w-0">
+            <div className="hidden md:block min-w-0 text-left">
               <p className="text-xs font-bold text-slate-700 truncate">{rank.rank_tier}</p>
               <p className="text-[11px] text-slate-400">{rank.exams_count ?? 0} đề đã đóng góp</p>
             </div>
-          </div>
+          </button>
         )}
 
         {/* MENU ITEMS */}
-        <nav className="flex-1 py-6 px-3 space-y-2 overflow-y-auto">
+        <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
           <button
             onClick={() => setActiveTab('exams')}
-            className={`w-full flex items-center p-3 rounded-xl transition-all ${
-              activeTab === 'exams' 
-                ? 'bg-blue-50 text-blue-700 font-bold' 
+            className={`w-full flex items-center p-2.5 rounded-xl transition-all ${
+              activeTab === 'exams'
+                ? 'bg-blue-50 text-blue-700 font-bold'
                 : 'text-slate-600 hover:bg-white/60 font-medium'
             }`}
           >
@@ -92,9 +99,9 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = (props) => {
 
           <button
             onClick={() => setActiveTab('question_bank')}
-            className={`w-full flex items-center p-3 rounded-xl transition-all ${
-              activeTab === 'question_bank' 
-                ? 'bg-blue-50 text-blue-700 font-bold' 
+            className={`w-full flex items-center p-2.5 rounded-xl transition-all ${
+              activeTab === 'question_bank'
+                ? 'bg-blue-50 text-blue-700 font-bold'
                 : 'text-slate-600 hover:bg-white/60 font-medium'
             }`}
           >
@@ -103,10 +110,22 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = (props) => {
           </button>
 
           <button
+            onClick={() => setActiveTab('leaderboard')}
+            className={`w-full flex items-center p-2.5 rounded-xl transition-all ${
+              activeTab === 'leaderboard'
+                ? 'bg-blue-50 text-blue-700 font-bold'
+                : 'text-slate-600 hover:bg-white/60 font-medium'
+            }`}
+          >
+            <Trophy className="w-5 h-5 flex-shrink-0" />
+            <span className="hidden md:block ml-3">Xếp Hạng</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('stats')}
-            className={`w-full flex items-center p-3 rounded-xl transition-all ${
-              activeTab === 'stats' 
-                ? 'bg-blue-50 text-blue-700 font-bold' 
+            className={`w-full flex items-center p-2.5 rounded-xl transition-all ${
+              activeTab === 'stats'
+                ? 'bg-blue-50 text-blue-700 font-bold'
                 : 'text-slate-600 hover:bg-white/60 font-medium'
             }`}
           >
@@ -115,7 +134,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = (props) => {
           </button>
           <button
             onClick={() => setActiveTab('profile')}
-            className={`w-full flex items-center p-3 rounded-xl transition-all ${
+            className={`w-full flex items-center p-2.5 rounded-xl transition-all ${
               activeTab === 'profile'
                 ? 'bg-blue-50 text-blue-700 font-bold'
                 : 'text-slate-600 hover:bg-white/60 font-medium'

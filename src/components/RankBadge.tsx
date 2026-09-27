@@ -32,35 +32,54 @@ export function rankLevel(tier: string | null | undefined): number {
   return TIER_LEVEL[tier || ''] ?? 0;
 }
 
+/** Màu chủ đạo của 1 bậc rank — dùng để tô điểm chữ/viền ở bảng xếp hạng. */
+export function rankColor(tier: string | null | undefined): string {
+  return LEVEL_COLORS[rankLevel(tier)].dark;
+}
+
 interface RankIconProps {
   tier: string | null | undefined;
   size?: number;
   className?: string;
+  /** Hiệu ứng phát sáng quanh huy hiệu theo màu bậc — mặc định bật để icon nổi bật hơn. */
+  glow?: boolean;
 }
 
 /** Icon huy hiệu 1 bậc rank, dạng SVG nền trong suốt. */
-export const RankIcon: React.FC<RankIconProps> = ({ tier, size = 40, className }) => {
+export const RankIcon: React.FC<RankIconProps> = ({ tier, size = 40, className, glow = true }) => {
   const uid = useId().replace(/[:]/g, '');
   const level = rankLevel(tier);
   const c = LEVEL_COLORS[level];
   const gradId = `rankGrad-${uid}`;
+  const glowId = `rankGlow-${uid}`;
   const isLegend = level === 5;
+  const glowOpacity = [0, 0.25, 0.3, 0.4, 0.45, 0.55][level];
 
   return (
-    <svg width={size} height={size} viewBox="0 0 100 100" className={className} role="img" aria-label={tier || 'Tân Binh'}>
+    <svg
+      width={size} height={size} viewBox="0 0 100 100" className={className} role="img" aria-label={tier || 'Tân Binh'}
+      style={glow && level > 0 ? { filter: `drop-shadow(0 0 ${3 + level}px ${c.base}99)` } : undefined}
+    >
       <defs>
         <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stopColor={c.base} />
           <stop offset="100%" stopColor={c.dark} />
         </linearGradient>
+        <radialGradient id={glowId} cx="50%" cy="50%" r="50%">
+          <stop offset="55%" stopColor={c.base} stopOpacity="0" />
+          <stop offset="100%" stopColor={c.base} stopOpacity={glowOpacity} />
+        </radialGradient>
       </defs>
+
+      {/* Vầng hào quang tròn phía sau — càng cao bậc càng rực rỡ */}
+      {level > 0 && <circle cx="50" cy="50" r="49" fill={`url(#${glowId})`} />}
 
       {/* Bậc cao nhất: hào quang tia sáng phía sau */}
       {isLegend && (
-        <g opacity={0.55} stroke={c.base} strokeWidth={2.5}>
+        <g opacity={0.65} stroke={c.base} strokeWidth={3}>
           {Array.from({ length: 8 }).map((_, i) => {
             const a = (i * Math.PI) / 4;
-            const x1 = 50 + Math.cos(a) * 40, y1 = 50 + Math.sin(a) * 40;
+            const x1 = 50 + Math.cos(a) * 39, y1 = 50 + Math.sin(a) * 39;
             const x2 = 50 + Math.cos(a) * 49, y2 = 50 + Math.sin(a) * 49;
             return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} strokeLinecap="round" />;
           })}
@@ -69,6 +88,7 @@ export const RankIcon: React.FC<RankIconProps> = ({ tier, size = 40, className }
 
       {/* Vòng ngoài (huy chương) */}
       <circle cx="50" cy="50" r="38" fill={`url(#${gradId})`} stroke={c.dark} strokeWidth="2.5" />
+      <circle cx="50" cy="50" r="34.5" fill="none" stroke={c.glyph} strokeOpacity={0.85} strokeWidth="1.5" />
       <circle cx="50" cy="50" r="31" fill="none" stroke={c.glyph} strokeOpacity={0.5} strokeWidth="1.5" />
 
       {/* Vòng nguyệt quế 2 bên: từ bậc Tinh Anh/Ngôi Sao trở lên */}
@@ -115,6 +135,10 @@ interface RankBadgeProps {
 export const RankBadge: React.FC<RankBadgeProps> = ({ tier, size = 28, showLabel = true, className = '' }) => (
   <span className={`inline-flex items-center gap-1.5 ${className}`}>
     <RankIcon tier={tier} size={size} />
-    {showLabel && <span className="font-bold text-xs sm:text-sm text-slate-700 whitespace-nowrap">{tier || 'Tân Binh'}</span>}
+    {showLabel && (
+      <span className="font-extrabold text-xs sm:text-sm whitespace-nowrap" style={{ color: rankColor(tier) }}>
+        {tier || 'Tân Binh'}
+      </span>
+    )}
   </span>
 );

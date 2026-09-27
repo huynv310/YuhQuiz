@@ -148,17 +148,20 @@ export const CreateExamModal: React.FC<CreateExamModalProps> = ({
 
     setIsUploading(true);
     try {
-      const ext = file.name.split('.').pop();
-      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
-      const filePath = `exams/${fileName}`;
+      // Tên = SHA-256 nội dung: cùng nội dung chỉ lưu 1 bản, và không bao giờ bị ghi đè
+      // nên cache dài hạn an toàn.
+      const digest = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
+      const hash = Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+      const filePath = `exams/${hash}.pdf`;
 
-      // Tên file duy nhất vĩnh viễn (timestamp + random), không bao giờ bị ghi đè
-      // nên cache dài hạn an toàn — tránh học sinh phải tải lại PDF nhiều lần.
       const { error: uploadError } = await supabase.storage
         .from('exam-pdfs')
-        .upload(filePath, file, { cacheControl: '31536000', upsert: false });
+        .upload(filePath, file, { cacheControl: '31536000', upsert: false, contentType: 'application/pdf' });
 
-      if (uploadError) throw uploadError;
+      // Tệp trùng nội dung đã có sẵn → dùng lại, không phải lỗi
+      if (uploadError && !/exists|Duplicate|409/i.test(`${uploadError.message} ${(uploadError as any).statusCode}`)) {
+        throw uploadError;
+      }
 
       const { data: { publicUrl } } = supabase.storage
         .from('exam-pdfs')

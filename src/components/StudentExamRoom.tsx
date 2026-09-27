@@ -135,11 +135,34 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const submitLockRef = useRef<boolean>(false); // khóa đồng bộ, tránh double-submit trong lúc chờ jitter
 
+  // CẢNH BÁO VI PHẠM: chỉ đe dọa bằng thông báo, KHÔNG tự nộp bài — cảm biến rời tab/mất
+  // tiêu điểm dễ báo sai (ví dụ do mất mạng, do thiết bị), tự nộp nhầm sẽ hại học sinh oan.
+  const [cheatWarningMsg, setCheatWarningMsg] = useState<string>('');
+  const cheatWarningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const violationCountRef = useRef<number>(0);
+
   // ANTI-CHEAT: HOÀN TOÀN TẮT KHI ĐÃ NỘP BÀI (!isSubmitted)
   const { cheatCount, totalAwaySecs } = useAntiCheat(!isSubmitted && !isReview, undefined, (reason, away) => {
     logTelemetry(examId, sessionToken, { type: 'violation', reason, away });
+
+    violationCountRef.current += 1;
+    const n = violationCountRef.current;
+    const msg =
+      n >= 10
+        ? `🚨 Đã ghi nhận ${n} lần vi phạm! Vi phạm quá nhiều có thể khiến bài làm bị buộc nộp và báo cho giáo viên.`
+        : n >= 6
+        ? `⚠️ Đã ghi nhận ${n} lần vi phạm. Tiếp tục vi phạm có thể khiến bài làm của bạn bị tự động nộp.`
+        : n >= 3
+        ? `Đã ghi nhận ${n} lần vi phạm (${reason}). Hãy tập trung làm bài.`
+        : '';
+    if (msg) {
+      setCheatWarningMsg(msg);
+      if (cheatWarningTimerRef.current) clearTimeout(cheatWarningTimerRef.current);
+      cheatWarningTimerRef.current = setTimeout(() => setCheatWarningMsg(''), 6000);
+    }
   });
   useAutoSave(answers, examId, sessionToken, studentName, className, isSubmitted || isReview, currentUser?.id || null);
+  useEffect(() => () => { if (cheatWarningTimerRef.current) clearTimeout(cheatWarningTimerRef.current); }, []);
 
   useEffect(() => {
     if (!examId) return;
@@ -562,6 +585,14 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
         <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex items-center space-x-2 text-amber-700 text-xs sm:text-sm font-bold z-20">
           <RefreshCw className="w-4 h-4 animate-spin" />
           <span>{retryStatus}</span>
+        </div>
+      )}
+
+      {/* CẢNH BÁO VI PHẠM: chỉ đe dọa, không tự nộp bài (xem giải thích ở khai báo state) */}
+      {cheatWarningMsg && !isSubmitted && (
+        <div className={`border-b px-4 py-2 flex items-center space-x-2 text-xs sm:text-sm font-bold z-20 ${violationCountRef.current >= 10 ? 'bg-rose-50 border-rose-200 text-rose-700' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
+          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+          <span>{cheatWarningMsg}</span>
         </div>
       )}
 

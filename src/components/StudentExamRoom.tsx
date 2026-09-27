@@ -209,6 +209,7 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
 
   const [isJittering, setIsJittering] = useState<boolean>(false);
   const [networkError, setNetworkError] = useState<boolean>(false);
+  const [retryStatus, setRetryStatus] = useState<string>('');
 
   const handleDownloadRescueFile = () => {
     const rec = { examId, examTitle: exam?.title, studentName, className, sessionToken, answers, cheatCount, totalAwaySecs, timestamp: Date.now() };
@@ -216,6 +217,10 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
     downloadRescue(rec);
     alert('Đã tải file cứu hộ và lưu bản dự phòng trong máy. Khi có mạng, vào Cổng học sinh → Lịch sử thi để nộp lại, hoặc gửi file này cho giáo viên.');
   };
+
+  // Nộp tự động lúc hết giờ = lúc cả lớp cùng nộp, dễ gặp lỗi tạm thời (mạng, máy chủ bận) đúng
+  // lúc học sinh không còn để ý màn hình → tự thử lại thay vì bắt bấm tay ngay từ lần lỗi đầu.
+  const AUTO_SUBMIT_RETRY_DELAYS_MS = [3000, 8000, 20000];
 
   // HÀM NỘP BÀI TỔNG THỂ
   const handleFinalSubmit = async (isAutoSubmit = false): Promise<boolean> => {
@@ -232,10 +237,10 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
     }
 
     setNetworkError(false);
-    try {
+
+    const attemptSubmit = async () => {
       const studentId = currentUser?.id || null;
       const school = currentUser?.school || currentUser?.user_metadata?.school || 'THPT';
-
       const telemetry = await readTelemetry(examId, sessionToken);
 
       const { data, error } = await supabase.rpc('submit_and_grade_exam', {
@@ -250,24 +255,39 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
         p_school: school,
         p_telemetry: telemetry,
       });
-
       if (error) throw error;
-      clearTelemetry(examId, sessionToken);
-      removeRescue(sessionToken);
-      setResult(data);
-      setIsSubmitted(true);
-      setIsMobileSheetOpen(true);
-      localStorage.removeItem('active_exam_session');
-      return true;
-    } catch (err: any) {
-      console.error('Lỗi khi nộp bài:', err);
-      saveRescue({ examId, examTitle: exam?.title, sessionToken, studentName, className, answers, cheatCount, totalAwaySecs });
-      setNetworkError(true);
-      return false;
-    } finally {
-      submitLockRef.current = false;
-      setIsSubmitting(false);
+      return data;
+    };
+
+    const maxAttempts = isAutoSubmit ? AUTO_SUBMIT_RETRY_DELAYS_MS.length + 1 : 1;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const data = await attemptSubmit();
+        setRetryStatus('');
+        clearTelemetry(examId, sessionToken);
+        removeRescue(sessionToken);
+        setResult(data);
+        setIsSubmitted(true);
+        setIsMobileSheetOpen(true);
+        localStorage.removeItem('active_exam_session');
+        submitLockRef.current = false;
+        setIsSubmitting(false);
+        return true;
+      } catch (err: any) {
+        console.error(`Lỗi khi nộp bài (lần ${attempt}/${maxAttempts}):`, err);
+        if (attempt < maxAttempts) {
+          setRetryStatus(`Máy chủ đang bận, tự thử lại (lần ${attempt + 1}/${maxAttempts})...`);
+          await new Promise(resolve => setTimeout(resolve, AUTO_SUBMIT_RETRY_DELAYS_MS[attempt - 1]));
+        }
+      }
     }
+
+    setRetryStatus('');
+    saveRescue({ examId, examTitle: exam?.title, sessionToken, studentName, className, answers, cheatCount, totalAwaySecs });
+    setNetworkError(true);
+    submitLockRef.current = false;
+    setIsSubmitting(false);
+    return false;
   };
 
   // TỰ ĐỘNG NỘP BÀI KHI HẾT GIỜ
@@ -527,7 +547,7 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
               className={`flex items-center space-x-1 active:scale-95 text-white px-3 md:px-4 py-1.5 md:py-2 rounded-full font-bold text-xs md:text-sm transition-all shadow-sm flex-shrink-0 ${networkError ? 'bg-rose-500 hover:bg-rose-600' : 'bg-primary hover:bg-primary-dark'}`}
             >
               {(isSubmitting || isJittering) ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-              <span>{isJittering ? 'Chờ tải...' : (networkError ? 'Thử lại' : 'Nộp bài')}</span>
+              <span>{isJittering ? 'Chờ tải...' : retryStatus ? 'Đang thử lại...' : (networkError ? 'Thử lại' : 'Nộp bài')}</span>
             </button>
           ) : (
             <div className="flex items-center space-x-1 bg-blue-50 text-primary-dark border border-blue-200 px-2.5 py-1 rounded-full font-extrabold text-xs md:text-sm flex-shrink-0">
@@ -537,6 +557,14 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
           )}
         </div>
       </header>
+
+      {/* NỘP TỰ ĐỘNG LỖI: ĐANG TỰ THỬ LẠI (chưa cần hành động của học sinh) */}
+      {retryStatus && !isSubmitted && (
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex items-center space-x-2 text-amber-700 text-xs sm:text-sm font-bold z-20">
+          <RefreshCw className="w-4 h-4 animate-spin" />
+          <span>{retryStatus}</span>
+        </div>
+      )}
 
       {/* HIỂN THỊ CẢNH BÁO MẤT MẠNG VÀ NÚT TẢI FILE CỨU HỘ */}
       {networkError && !isSubmitted && (

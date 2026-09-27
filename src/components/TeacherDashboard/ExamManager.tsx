@@ -8,6 +8,7 @@ import {
   RotateCcw, StopCircle, Share2, Copy, Link, QrCode, X
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { toCachedPdfUrl } from '../../lib/pdfUrl';
 import { Exam, Submission } from '../../types/exam';
 import { CreateExamModal } from '../CreateExamModal';
 import { ClassroomModal } from '../ClassroomModal';
@@ -772,7 +773,7 @@ export const ExamManager: React.FC<TeacherDashboardProps> = ({
                   </div>
                 ) : selectedExam.pdf_url ? (
                   <iframe title="Đề thi PDF" className="flex-1 w-full border-0 bg-white"
-                          src={`https://docs.google.com/viewer?url=${encodeURIComponent(selectedExam.pdf_url)}&embedded=true`} />
+                          src={`https://docs.google.com/viewer?url=${encodeURIComponent(toCachedPdfUrl(selectedExam.pdf_url))}&embedded=true`} />
                 ) : (
                   <div className="flex-1 grid place-items-center text-sm text-white/80 p-6 text-center">Đề này chưa có file PDF hoặc ảnh câu hỏi.</div>
                 )}
@@ -1050,13 +1051,13 @@ export const ExamManager: React.FC<TeacherDashboardProps> = ({
             <div className="flex-1 flex overflow-hidden bg-[#525659] relative">
               {examToPreview.pdf_url ? (
                 <object
-                  data={`${examToPreview.pdf_url}#view=FitH&toolbar=0`}
+                  data={`${toCachedPdfUrl(examToPreview.pdf_url)}#view=FitH&toolbar=0`}
                   type="application/pdf"
                   className="w-full h-full"
                 >
                   <div className="flex flex-col items-center justify-center h-full text-white">
                     <p>Trình duyệt không hỗ trợ xem PDF trực tiếp.</p>
-                    <a href={examToPreview.pdf_url} target="_blank" rel="noreferrer" className="mt-4 px-4 py-2 bg-primary text-white rounded-full font-bold">
+                    <a href={toCachedPdfUrl(examToPreview.pdf_url)} target="_blank" rel="noreferrer" className="mt-4 px-4 py-2 bg-primary text-white rounded-full font-bold">
                       Tải PDF xuống
                     </a>
                   </div>

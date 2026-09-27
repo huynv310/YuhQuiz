@@ -1,14 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { supabase } from './lib/supabase';
 import { bootSession, signOutEverywhere } from './lib/session';
 
 // === CORE COMPONENTS (Logic thực) ===
-import { AuthModal } from './components/AuthModal';
-import { CompleteProfileModal } from './components/CompleteProfileModal';
-import { TeacherDashboard } from './components/TeacherDashboard';
-import { StudentPortal } from './components/StudentPortal';
-import { StudentExamRoom } from './components/StudentExamRoom';
-import { ExamPrepScreen } from './components/StudentPortal/ExamPrepScreen';
+// Tách theo nhánh (teacher / student / phòng thi) bằng React.lazy: người vào Landing
+// (đông nhất, chưa đăng nhập) không phải tải JS của cả 2 dashboard + phòng thi.
+const AuthModal = lazy(() => import('./components/AuthModal').then(m => ({ default: m.AuthModal })));
+const CompleteProfileModal = lazy(() => import('./components/CompleteProfileModal').then(m => ({ default: m.CompleteProfileModal })));
+const TeacherDashboard = lazy(() => import('./components/TeacherDashboard').then(m => ({ default: m.TeacherDashboard })));
+const StudentPortal = lazy(() => import('./components/StudentPortal').then(m => ({ default: m.StudentPortal })));
+const StudentExamRoom = lazy(() => import('./components/StudentExamRoom').then(m => ({ default: m.StudentExamRoom })));
+const ExamPrepScreen = lazy(() => import('./components/StudentPortal/ExamPrepScreen').then(m => ({ default: m.ExamPrepScreen })));
 import { readPendingExam, clearPendingExam } from './lib/examId';
 
 // === LANDING PAGE (UI/UX Pro Max + GSAP + Three.js) ===
@@ -30,6 +32,17 @@ import { Exam } from './types/exam';
 //  'exam_room'     → Phòng thi (StudentExamRoom với IndexedDB + Jitter)
 // =========================================================
 type AppMode = 'landing' | 'auth' | 'complete_profile' | 'teacher' | 'student_portal' | 'exam_prep' | 'exam_room';
+
+function PageLoading({ text = 'Đang tải...' }: { text?: string }) {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="flex flex-col items-center space-y-4">
+        <LogoMark className="w-12 h-12 animate-pulse" />
+        <p className="text-mutedForeground text-sm font-medium">{text}</p>
+      </div>
+    </div>
+  );
+}
 
 interface ActiveExamSession {
   examId: string;
@@ -166,14 +179,7 @@ export default function App() {
   // LOADING SCREEN
   // ─────────────────────────────────────────────────────────
   if (isLoadingAuth) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="flex flex-col items-center space-y-4">
-          <LogoMark className="w-12 h-12 animate-pulse" />
-          <p className="text-mutedForeground text-sm font-medium">Đang khởi động...</p>
-        </div>
-      </div>
-    );
+    return <PageLoading text="Đang khởi động..." />;
   }
 
   // ─────────────────────────────────────────────────────────
@@ -183,66 +189,74 @@ export default function App() {
   // 1. PHÒNG THI
   if (mode === 'exam_room' && activeExam) {
     return (
-      <StudentExamRoom
-        examId={activeExam.examId}
-        studentName={activeExam.studentName}
-        className={activeExam.className}
-        reviewSubmissionId={activeExam.reviewSubmissionId}
-        currentUser={currentUser}
-        onExit={() => {
-          setActiveExam(null);
-          setMode(currentUser ? 'student_portal' : 'landing');
-        }}
-      />
+      <Suspense fallback={<PageLoading />}>
+        <StudentExamRoom
+          examId={activeExam.examId}
+          studentName={activeExam.studentName}
+          className={activeExam.className}
+          reviewSubmissionId={activeExam.reviewSubmissionId}
+          currentUser={currentUser}
+          onExit={() => {
+            setActiveExam(null);
+            setMode(currentUser ? 'student_portal' : 'landing');
+          }}
+        />
+      </Suspense>
     );
   }
 
   // 1b. MÀN HÌNH CHUẨN BỊ VÀO THI
   if (mode === 'exam_prep' && prepKey && currentUser) {
     return (
-      <ExamPrepScreen
-        examKey={prepKey}
-        currentUser={currentUser}
-        profile={userProfile}
-        onBack={() => { clearPendingExam(); setPrepKey(null); setMode('student_portal'); }}
-        onStart={(examId, className, fresh) => {
-          clearPendingExam();
-          handleStartExam(examId, userProfile?.full_name || currentUser.email?.split('@')[0] || 'Học sinh', className, userProfile?.school || 'THPT', fresh);
-        }}
-      />
+      <Suspense fallback={<PageLoading />}>
+        <ExamPrepScreen
+          examKey={prepKey}
+          currentUser={currentUser}
+          profile={userProfile}
+          onBack={() => { clearPendingExam(); setPrepKey(null); setMode('student_portal'); }}
+          onStart={(examId, className, fresh) => {
+            clearPendingExam();
+            handleStartExam(examId, userProfile?.full_name || currentUser.email?.split('@')[0] || 'Học sinh', className, userProfile?.school || 'THPT', fresh);
+          }}
+        />
+      </Suspense>
     );
   }
 
   // 2. TEACHER DASHBOARD
   if (mode === 'teacher' && userProfile?.role === 'teacher') {
     return (
-      <TeacherDashboard
-        currentUser={currentUser}
-        profile={userProfile}
-        onProfileUpdated={setUserProfile}
-        onLogout={handleLogout}
-        onBackToHome={() => setMode('landing')}
-        onPreviewExam={(examId: string) => {
-          // Xem thử đề với tên giáo viên
-          handleStartExam(examId, userProfile.full_name || 'Preview', 'GV', userProfile.school || '');
-        }}
-        onSwitchToStudentView={() => setMode('student_portal')}
-      />
+      <Suspense fallback={<PageLoading />}>
+        <TeacherDashboard
+          currentUser={currentUser}
+          profile={userProfile}
+          onProfileUpdated={setUserProfile}
+          onLogout={handleLogout}
+          onBackToHome={() => setMode('landing')}
+          onPreviewExam={(examId: string) => {
+            // Xem thử đề với tên giáo viên
+            handleStartExam(examId, userProfile.full_name || 'Preview', 'GV', userProfile.school || '');
+          }}
+          onSwitchToStudentView={() => setMode('student_portal')}
+        />
+      </Suspense>
     );
   }
 
   // 3. STUDENT PORTAL
   if (mode === 'student_portal' && currentUser) {
     return (
-      <StudentPortal
-        currentUser={currentUser}
-        profile={userProfile}
-        onProfileUpdated={setUserProfile}
-        onStartExam={(examId) => openPrep(examId)}
-        onReviewExam={handleReviewExam}
-        onLogout={handleLogout}
-        onSwitchToTeacher={userProfile?.role === 'teacher' ? () => setMode('teacher') : undefined}
-      />
+      <Suspense fallback={<PageLoading />}>
+        <StudentPortal
+          currentUser={currentUser}
+          profile={userProfile}
+          onProfileUpdated={setUserProfile}
+          onStartExam={(examId) => openPrep(examId)}
+          onReviewExam={handleReviewExam}
+          onLogout={handleLogout}
+          onSwitchToTeacher={userProfile?.role === 'teacher' ? () => setMode('teacher') : undefined}
+        />
+      </Suspense>
     );
   }
 
@@ -273,27 +287,31 @@ export default function App() {
 
       {/* Modal Đăng nhập / Đăng ký */}
       {isAuthModalOpen && (
-        <AuthModal
-          onClose={() => setIsAuthModalOpen(false)}
-          initialRole={authRole}
-          onSuccess={(profile) => {
-            setUserProfile(profile);
-            setIsAuthModalOpen(false);
-            routeAfterLogin(profile);
-          }}
-        />
+        <Suspense fallback={null}>
+          <AuthModal
+            onClose={() => setIsAuthModalOpen(false)}
+            initialRole={authRole}
+            onSuccess={(profile) => {
+              setUserProfile(profile);
+              setIsAuthModalOpen(false);
+              routeAfterLogin(profile);
+            }}
+          />
+        </Suspense>
       )}
 
       {/* Modal hoàn thiện hồ sơ sau Google OAuth */}
       {showCompleteProfile && currentUser && (
-        <CompleteProfileModal
-          user={currentUser}
-          onSuccess={(profile) => {
-            setUserProfile(profile);
-            setShowCompleteProfile(false);
-            routeAfterLogin(profile);
-          }}
-        />
+        <Suspense fallback={null}>
+          <CompleteProfileModal
+            user={currentUser}
+            onSuccess={(profile) => {
+              setUserProfile(profile);
+              setShowCompleteProfile(false);
+              routeAfterLogin(profile);
+            }}
+          />
+        </Suspense>
       )}
     </div>
   );

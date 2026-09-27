@@ -4,7 +4,9 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   build: {
-    chunkSizeWarningLimit: 1800,
+    // AmbientScene (Three.js) ~884KB là chunk lazy lớn nhất, không nằm trên đường tải ban đầu
+    // (xem AmbientBackground.tsx). Đặt sát ngưỡng đó để vẫn cảnh báo nếu chunk EAGER phình to.
+    chunkSizeWarningLimit: 900,
     rollupOptions: {
       output: {
         manualChunks: {

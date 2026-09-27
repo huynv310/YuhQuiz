@@ -4,8 +4,10 @@ import App from './App';
 import './index.css';
 import { AmbientBackground } from './components/AmbientBackground';
 import { initGlassPointer, initModalBehavior } from './lib/motion';
+import { installGlobalErrorReporting, reportError } from './lib/reportError';
 initGlassPointer();
 initModalBehavior();
+installGlobalErrorReporting();
 
 // ERROR BOUNDARY TOÀN CỤC CHỐNG MÀN HÌNH TRẮNG 100%
 class GlobalErrorBoundary extends React.Component<
@@ -23,6 +25,7 @@ class GlobalErrorBoundary extends React.Component<
 
   componentDidCatch(error: any, errorInfo: any) {
     console.error('Lỗi giao diện bị chặn bởi GlobalErrorBoundary:', error, errorInfo);
+    reportError(error?.message || String(error), error?.stack);
   }
 
   render() {

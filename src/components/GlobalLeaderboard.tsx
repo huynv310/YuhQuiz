@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Trophy, Loader2, GraduationCap, Users, Timer } from 'lucide-react';
+import { Trophy, Loader2, GraduationCap, Users, Timer, ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { RankIcon, rankColor } from './RankBadge';
 import { useSeasonCountdown } from '../hooks/useSeasonCountdown';
@@ -23,11 +23,11 @@ interface StudentRow {
 interface GlobalLeaderboardProps {
   /** Vai trò người xem — quyết định bảng nào mở mặc định. */
   defaultRole: 'teacher' | 'student';
-  /** Bố cục gọn hơn — dùng khi nhúng trong dashboard giáo viên (ít khoảng trống dọc hơn). */
-  dense?: boolean;
-  /** Bỏ khung max-width/padding ngoài — dùng khi nơi gọi đã tự bọc container (VD: tab trong ExamList). */
+  /** Bỏ khung max-width/padding ngoài — dùng khi nơi gọi đã tự bọc container (VD: tab trong ExamList/dashboard). */
   bare?: boolean;
 }
+
+const PAGE_SIZE = 30;
 
 const MEDAL_ROW = [
   '',
@@ -46,13 +46,17 @@ const PositionCell: React.FC<{ pos: number }> = ({ pos }) => (
  * Bảng xếp hạng toàn hệ thống — 2 BXH riêng biệt (giáo viên theo số đề đóng góp, học sinh theo
  * điểm xếp hạng có trọng số ưu tiên số lượng đề đã làm), chuyển qua lại bằng tab, không trộn vai
  * trò. Dữ liệu lấy qua RPC get_teacher_leaderboard/get_student_leaderboard (chỉ lộ tên + trường,
- * không có SĐT/email — đã kiểm soát ở tầng DB).
+ * không có SĐT/email — đã kiểm soát ở tầng DB), tải 1 lần (tối đa 200 dòng theo giới hạn RPC) rồi
+ * phân trang phía client — không tốn thêm round-trip khi lật trang.
+ *
+ * Giao diện giống hệt nhau ở cả Teacher dashboard và Student portal theo yêu cầu.
  */
-export const GlobalLeaderboard: React.FC<GlobalLeaderboardProps> = ({ defaultRole, dense = false, bare = false }) => {
+export const GlobalLeaderboard: React.FC<GlobalLeaderboardProps> = ({ defaultRole, bare = false }) => {
   const [tab, setTab] = useState<'teacher' | 'student'>(defaultRole);
   const [teachers, setTeachers] = useState<TeacherRow[] | null>(null);
   const [students, setStudents] = useState<StudentRow[] | null>(null);
   const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(0);
   const { label: countdownLabel, resetDate } = useSeasonCountdown();
 
   useEffect(() => {
@@ -62,10 +66,10 @@ export const GlobalLeaderboard: React.FC<GlobalLeaderboardProps> = ({ defaultRol
       if (tab === 'student' && students !== null) return;
       setLoading(true);
       if (tab === 'teacher') {
-        const { data } = await supabase.rpc('get_teacher_leaderboard', { p_limit: 100 });
+        const { data } = await supabase.rpc('get_teacher_leaderboard', { p_limit: 200 });
         if (alive) setTeachers(data || []);
       } else {
-        const { data } = await supabase.rpc('get_student_leaderboard', { p_limit: 100 });
+        const { data } = await supabase.rpc('get_student_leaderboard', { p_limit: 200 });
         if (alive) setStudents(data || []);
       }
       if (alive) setLoading(false);
@@ -74,13 +78,23 @@ export const GlobalLeaderboard: React.FC<GlobalLeaderboardProps> = ({ defaultRol
     return () => { alive = false; };
   }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const headPad = dense ? 'px-3 py-2' : 'px-4 py-3';
-  const cellPad = dense ? 'px-3 py-2.5' : 'px-4 py-3.5';
-  const iconSize = dense ? 30 : 38;
+  const switchTab = (t: 'teacher' | 'student') => {
+    setTab(t);
+    setPage(0);
+  };
+
+  const headPad = 'px-3 py-2';
+  const cellPad = 'px-3 py-2.5';
+  const iconSize = 30;
+
+  const allRows = tab === 'teacher' ? teachers : students;
+  const totalPages = allRows ? Math.max(1, Math.ceil(allRows.length / PAGE_SIZE)) : 1;
+  const pageRows = allRows ? allRows.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE) : null;
+  const pageStart = page * PAGE_SIZE;
 
   return (
-    <div className={dense || bare ? '' : 'max-w-5xl mx-auto w-full px-4 md:px-8'}>
-      <div className={dense ? 'p-4 md:p-6' : bare ? '' : 'py-6'}>
+    <div className={bare ? '' : 'max-w-5xl mx-auto w-full px-4 md:px-8'}>
+      <div className={bare ? '' : 'py-6'}>
         <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
           <div className="flex items-center gap-2">
             <Trophy className="w-5 h-5 text-amber-500" />
@@ -100,22 +114,27 @@ export const GlobalLeaderboard: React.FC<GlobalLeaderboardProps> = ({ defaultRol
             : 'Xếp theo điểm ưu tiên số lượng đề đã làm trong năm học hiện tại — làm càng nhiều đề, điểm xếp hạng càng sát điểm trung bình thật.'}
         </p>
 
-        <div className="inline-flex bg-slate-100 rounded-xl p-1 mb-4 gap-1">
+        {/* CHUYỂN ĐỔI BXH GIÁO VIÊN / HỌC SINH — to, rõ, dễ bấm */}
+        <div className="grid grid-cols-2 gap-2 mb-5 max-w-md">
           <button
-            onClick={() => setTab('teacher')}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-              tab === 'teacher' ? 'bg-white text-primary shadow-xs' : 'text-slate-500 hover:text-slate-700'
+            onClick={() => switchTab('teacher')}
+            className={`flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl text-sm font-extrabold transition-all border-2 ${
+              tab === 'teacher'
+                ? 'bg-primary text-white border-primary shadow-md scale-[1.02]'
+                : 'bg-white text-slate-500 border-slate-200 hover:border-primary/40 hover:text-primary'
             }`}
           >
-            <GraduationCap className="w-3.5 h-3.5" /> Giáo viên
+            <GraduationCap className="w-5 h-5" /> Giáo viên
           </button>
           <button
-            onClick={() => setTab('student')}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-              tab === 'student' ? 'bg-white text-primary shadow-xs' : 'text-slate-500 hover:text-slate-700'
+            onClick={() => switchTab('student')}
+            className={`flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl text-sm font-extrabold transition-all border-2 ${
+              tab === 'student'
+                ? 'bg-primary text-white border-primary shadow-md scale-[1.02]'
+                : 'bg-white text-slate-500 border-slate-200 hover:border-primary/40 hover:text-primary'
             }`}
           >
-            <Users className="w-3.5 h-3.5" /> Học sinh
+            <Users className="w-5 h-5" /> Học sinh
           </button>
         </div>
 
@@ -125,7 +144,7 @@ export const GlobalLeaderboard: React.FC<GlobalLeaderboardProps> = ({ defaultRol
               <Loader2 className="w-4 h-4 animate-spin" /> Đang tải bảng xếp hạng...
             </div>
           ) : tab === 'teacher' ? (
-            teachers && teachers.length > 0 ? (
+            pageRows && pageRows.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
                   <thead>
@@ -138,9 +157,9 @@ export const GlobalLeaderboard: React.FC<GlobalLeaderboardProps> = ({ defaultRol
                     </tr>
                   </thead>
                   <tbody>
-                    {teachers.map((t, i) => (
-                      <tr key={i} className={`border-b border-slate-50 last:border-0 ${MEDAL_ROW[i < 3 ? i + 1 : 0]}`}>
-                        <td className={cellPad}><PositionCell pos={i + 1} /></td>
+                    {(pageRows as TeacherRow[]).map((t, i) => (
+                      <tr key={i} className={`border-b border-slate-50 last:border-0 ${MEDAL_ROW[pageStart + i < 3 ? pageStart + i + 1 : 0]}`}>
+                        <td className={cellPad}><PositionCell pos={pageStart + i + 1} /></td>
                         <td className={cellPad}>
                           <span className="inline-flex items-center gap-2">
                             <RankIcon tier={t.rank_tier} size={iconSize} />
@@ -158,7 +177,7 @@ export const GlobalLeaderboard: React.FC<GlobalLeaderboardProps> = ({ defaultRol
             ) : (
               <p className="p-10 text-center text-slate-400 text-sm">Chưa có giáo viên nào đủ điều kiện xếp hạng.</p>
             )
-          ) : students && students.length > 0 ? (
+          ) : pageRows && pageRows.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
@@ -173,9 +192,9 @@ export const GlobalLeaderboard: React.FC<GlobalLeaderboardProps> = ({ defaultRol
                   </tr>
                 </thead>
                 <tbody>
-                  {students.map((s, i) => (
-                    <tr key={i} className={`border-b border-slate-50 last:border-0 ${MEDAL_ROW[i < 3 ? i + 1 : 0]}`}>
-                      <td className={cellPad}><PositionCell pos={i + 1} /></td>
+                  {(pageRows as StudentRow[]).map((s, i) => (
+                    <tr key={i} className={`border-b border-slate-50 last:border-0 ${MEDAL_ROW[pageStart + i < 3 ? pageStart + i + 1 : 0]}`}>
+                      <td className={cellPad}><PositionCell pos={pageStart + i + 1} /></td>
                       <td className={cellPad}>
                         <span className="inline-flex items-center gap-2">
                           <RankIcon tier={s.rank_tier} size={iconSize} />
@@ -196,6 +215,32 @@ export const GlobalLeaderboard: React.FC<GlobalLeaderboardProps> = ({ defaultRol
             <p className="p-10 text-center text-slate-400 text-sm">Chưa có học sinh nào đủ điều kiện xếp hạng.</p>
           )}
         </div>
+
+        {/* PHÂN TRANG — 30 hạng/trang */}
+        {allRows && allRows.length > PAGE_SIZE && (
+          <div className="flex items-center justify-between mt-3 text-xs">
+            <span className="text-slate-400 font-semibold">
+              Hạng {pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, allRows.length)} / {allRows.length}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage(p => Math.max(0, p - 1))}
+                disabled={page === 0}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" /> Trước
+              </button>
+              <span className="font-bold text-slate-500 px-1">Trang {page + 1}/{totalPages}</span>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                disabled={page >= totalPages - 1}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              >
+                Sau <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -31,7 +31,11 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = (props) => {
       case 'question_bank':
         return <QuestionBank currentUser={props.currentUser} />;
       case 'leaderboard':
-        return <GlobalLeaderboard defaultRole="teacher" dense />;
+        return (
+          <div className="p-4 md:p-8">
+            <GlobalLeaderboard defaultRole="teacher" bare />
+          </div>
+        );
       case 'profile':
         return <ProfileView profile={props.profile} onUpdated={p => props.onProfileUpdated?.(p)} />;
       case 'stats':

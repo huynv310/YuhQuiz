@@ -41,6 +41,9 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
   const [isPdfFullscreen, setIsPdfFullscreen] = useState<boolean>(false);
   // Google Viewer mất vài giây tải, hiện overlay để học sinh đỡ tưởng bị treo
   const [isPdfFrameLoading, setIsPdfFrameLoading] = useState<boolean>(true);
+  const [isPdfFrameStuck, setIsPdfFrameStuck] = useState<boolean>(false);
+  const [pdfFrameKey, setPdfFrameKey] = useState<number>(0);
+  const pdfFrameLoadedRef = useRef<boolean>(false);
 
   // 2. Thu phóng file PDF độc lập (70% - 200%)
   const [pdfZoom, setPdfZoom] = useState<number>(1.0);
@@ -439,6 +442,28 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
 
   useEffect(() => {
     setIsPdfFrameLoading(true);
+    setIsPdfFrameStuck(false);
+    pdfFrameLoadedRef.current = false;
+    if (!exam?.pdf_url || !useGoogleViewer) return;
+    // Google Viewer thỉnh thoảng trả 204 (trang rỗng) → iframe không bao giờ onLoad, kẹt mãi ở "Đang tải".
+    // Tự tải lại khung với khoảng chờ tăng dần (10s, 15s, 20s… để mạng chậm vẫn kịp tải xong),
+    // quá 60 giây vẫn chưa được thì gợi ý chuyển sang trình đọc gốc.
+    let gap = 10_000;
+    let retryTimer: ReturnType<typeof setTimeout>;
+    const retry = () => {
+      if (pdfFrameLoadedRef.current) return;
+      setPdfFrameKey(k => k + 1);
+      gap = Math.min(gap + 5_000, 30_000);
+      retryTimer = setTimeout(retry, gap);
+    };
+    retryTimer = setTimeout(retry, gap);
+    const stuckTimer = setTimeout(() => {
+      if (!pdfFrameLoadedRef.current) setIsPdfFrameStuck(true);
+    }, 60_000);
+    return () => {
+      clearTimeout(retryTimer);
+      clearTimeout(stuckTimer);
+    };
   }, [exam?.pdf_url, useGoogleViewer]);
 
   if (!exam) {
@@ -717,15 +742,28 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
                 {useGoogleViewer ? (
                   <>
                     {isPdfFrameLoading && (
-                      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-white space-y-2 bg-[#525659]">
+                      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-white space-y-2 bg-[#525659] px-4 text-center">
                         <RefreshCw className="w-6 h-6 animate-spin" />
-                        <p className="text-sm">Đang tải đề thi qua Google Viewer...</p>
+                        <p className="text-sm">{isPdfFrameStuck ? 'Đề thi tải lâu hơn bình thường.' : 'Đang tải đề thi qua Google Viewer...'}</p>
+                        {isPdfFrameStuck && (
+                          <button
+                            onClick={() => setUseGoogleViewer(false)}
+                            className="mt-1 px-4 py-2 bg-primary rounded-full text-white text-sm font-bold"
+                          >
+                            Xem bằng trình đọc gốc
+                          </button>
+                        )}
                       </div>
                     )}
                     <iframe
+                      key={pdfFrameKey}
                       src={getPdfEmbedUrl()}
                       title="Đề thi PDF"
-                      onLoad={() => setIsPdfFrameLoading(false)}
+                      onLoad={() => {
+                        pdfFrameLoadedRef.current = true;
+                        setIsPdfFrameLoading(false);
+                        setIsPdfFrameStuck(false);
+                      }}
                       style={{
                         width: `${(100 / pdfZoom).toFixed(2)}%`,
                         height: `${(100 / pdfZoom).toFixed(2)}%`,

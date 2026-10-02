@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { saveRescue } from '../lib/rescue';
 
@@ -13,6 +13,7 @@ export function useAutoSave(
 ) {
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isFirstRender = useRef(true);
+  const [serverStartedAt, setServerStartedAt] = useState<string | null>(null);
   const latestAnswers = useRef(answers);
   latestAnswers.current = answers;
 
@@ -109,6 +110,7 @@ export function useAutoSave(
           ({ data, error }) => {
             if (cancelled) return;
             if (error) { retryTimer = setTimeout(tryStart, 15000); return; }
+            if (data?.started_at) setServerStartedAt(data.started_at);
             if (data?.rescue_secret) saveRescue({ examId, sessionToken, rescueSecret: data.rescue_secret });
           },
           () => {
@@ -134,4 +136,6 @@ export function useAutoSave(
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
   }, [answers, isSubmitted, syncToServer]);
+
+  return serverStartedAt;
 }

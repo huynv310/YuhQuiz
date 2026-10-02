@@ -130,6 +130,7 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
   // Chênh lệch (ms) giữa giờ server và giờ máy học sinh, dùng để tính giờ làm bài
   // không phụ thuộc đồng hồ máy khách (chống chỉnh lùi giờ để có thêm thời gian)
   const [serverTimeOffsetMs, setServerTimeOffsetMs] = useState<number>(0);
+  const [clockSync, setClockSync] = useState<'pending' | 'synced' | 'failed'>('pending');
   const [isSubmitted, setIsSubmitted] = useState<boolean>(isReview);
   const [result, setResult] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -161,7 +162,7 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
       cheatWarningTimerRef.current = setTimeout(() => setCheatWarningMsg(''), 6000);
     }
   });
-  useAutoSave(answers, examId, sessionToken, studentName, className, isSubmitted || isReview, currentUser?.id || null);
+  const serverStartedAt = useAutoSave(answers, examId, sessionToken, studentName, className, isSubmitted || isReview, currentUser?.id || null);
   useEffect(() => () => { if (cheatWarningTimerRef.current) clearTimeout(cheatWarningTimerRef.current); }, []);
 
   useEffect(() => {
@@ -169,11 +170,17 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
 
     async function init() {
       // Lấy giờ server 1 lần để tính offset so với đồng hồ máy học sinh
-      supabase.rpc('server_now').then(({ data: serverTime }) => {
-        if (serverTime) {
-          setServerTimeOffsetMs(new Date(serverTime).getTime() - Date.now());
-        }
-      });
+      supabase.rpc('server_now').then(
+        ({ data: serverTime }) => {
+          if (serverTime) {
+            setServerTimeOffsetMs(new Date(serverTime).getTime() - Date.now());
+            setClockSync('synced');
+          } else {
+            setClockSync('failed');
+          }
+        },
+        () => setClockSync('failed')
+      );
 
       // Đề thi và bản nộp/nháp không phụ thuộc nhau → gọi song song thay vì tuần tự,
       // giảm 1 nhịp round-trip mỗi học sinh lúc mở đề (đáng kể khi cả lớp vào cùng lúc).
@@ -322,11 +329,12 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
     }
   }, [isSubmitted, answers, cheatCount, totalAwaySecs]);
 
-  // Nút Quay lại của trình duyệt / vuốt back = rời phòng thi → thu bài, khóa, dừng đếm giờ
+  // Nút Quay lại của trình duyệt / vuốt back: trên điện thoại rất dễ bấm nhầm (vuốt mép màn hình,
+  // bấm Back để đóng bảng) → giữ học sinh lại trong phòng thi và hỏi xác nhận như nút "Quay lại".
   const leaveRef = useRef<() => Promise<void>>(async () => {});
   leaveRef.current = async () => {
-    if (!isSubmitted) await handleFinalSubmit();
-    onExit();
+    if (!isSubmitted) history.pushState({ yqExam: true }, '');
+    await handleBackClick();
   };
   useEffect(() => {
     if (isReview) return;
@@ -350,7 +358,11 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
   };
 
   const duration = exam?.duration_minutes || 0;
-  const timeLeft = useExamTimer(duration, `${examId}_${sessionToken}`, handleTimeOut, isSubmitted, serverTimeOffsetMs);
+  const timeLeft = useExamTimer(
+    duration, `${examId}_${sessionToken}`, handleTimeOut, isSubmitted, serverTimeOffsetMs,
+    clockSync !== 'pending',
+    clockSync === 'synced' && serverStartedAt ? Date.parse(serverStartedAt) : null
+  );
 
   const handlePointerDown = (e: React.PointerEvent) => {
     e.currentTarget.setPointerCapture(e.pointerId);

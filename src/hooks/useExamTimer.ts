@@ -5,7 +5,11 @@ export function useExamTimer(
   sessionKey: string,
   onTimeOut: () => void,
   isSubmitted: boolean = false,
-  serverTimeOffsetMs: number = 0
+  serverTimeOffsetMs: number = 0,
+  /** false cho tới khi đã thử lấy giờ server xong — tránh chốt hạn nộp theo offset 0 rồi bị lệch. */
+  clockReady: boolean = true,
+  /** started_at (ms, giờ server) của phiên — nguồn chuẩn, khớp đúng hạn mà server dùng để chặn nộp muộn. */
+  serverStartedAtMs: number | null = null
 ) {
   const [secondsRemaining, setSecondsRemaining] = useState<number | null>(null);
   const onTimeOutRef = useRef(onTimeOut);
@@ -15,24 +19,20 @@ export function useExamTimer(
 
   useEffect(() => {
     // Nếu đã nộp bài hoặc chưa tải xong thời gian làm bài (> 0 phút) thì không đếm
-    if (isSubmitted || !durationMinutes || durationMinutes <= 0) {
+    if (isSubmitted || !durationMinutes || durationMinutes <= 0 || !clockReady) {
       return;
     }
 
     // now() dùng giờ server bù trừ, không tin tuyệt đối đồng hồ máy học sinh
     const now = () => Date.now() + offsetRef.current;
 
-    const expireKey = `exam_expire_${sessionKey}_${durationMinutes}`;
-    let expireTimestamp = localStorage.getItem(expireKey);
-
-    if (!expireTimestamp) {
-      // Lần đầu vào thi: Thiết lập mốc hết hạn theo ĐÚNG số phút của đề thi giáo viên giao
-      const targetTime = now() + durationMinutes * 60 * 1000;
-      localStorage.setItem(expireKey, targetTime.toString());
-      expireTimestamp = targetTime.toString();
-    }
-
-    const targetMs = parseInt(expireTimestamp, 10);
+    // v2: bỏ các mốc cũ từng bị tính với offset 0 (máy chạy chậm giờ → bị tự nộp sớm)
+    const expireKey = `exam_expire_v2_${sessionKey}_${durationMinutes}`;
+    const stored = parseInt(localStorage.getItem(expireKey) || '', 10);
+    const targetMs = serverStartedAtMs
+      ? serverStartedAtMs + durationMinutes * 60 * 1000
+      : Number.isFinite(stored) ? stored : now() + durationMinutes * 60 * 1000;
+    if (targetMs !== stored) localStorage.setItem(expireKey, targetMs.toString());
     const initialDiff = Math.floor((targetMs - now()) / 1000);
 
     // Nếu thời gian đã hết từ trước
@@ -57,7 +57,7 @@ export function useExamTimer(
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [durationMinutes, sessionKey, isSubmitted]);
+  }, [durationMinutes, sessionKey, isSubmitted, clockReady, serverStartedAtMs]);
 
   // Trả về số giây còn lại, hoặc mặc định theo số phút của đề thi nếu chưa khởi tạo xong
   if (secondsRemaining !== null) {

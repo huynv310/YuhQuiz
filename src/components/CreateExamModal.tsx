@@ -66,12 +66,15 @@ export const CreateExamModal: React.FC<CreateExamModalProps> = ({
   const [hasTimeLimit, setHasTimeLimit] = useState<boolean>(
     Boolean(examToEdit?.start_at || examToEdit?.end_at)
   );
-  const [startAt, setStartAt] = useState<string>(
-    examToEdit?.start_at ? new Date(examToEdit.start_at).toISOString().slice(0, 16) : ''
-  );
-  const [endAt, setEndAt] = useState<string>(
-    examToEdit?.end_at ? new Date(examToEdit.end_at).toISOString().slice(0, 16) : ''
-  );
+  // <input type="datetime-local"> hiểu giá trị theo GIỜ ĐỊA PHƯƠNG; toISOString() là giờ UTC → hiện
+  // sớm 7 tiếng (VN) và lưu lại sẽ dời lịch thi sớm 7 tiếng. Phải định dạng theo giờ địa phương.
+  const toLocalInput = (iso: string) => {
+    const d = new Date(iso);
+    const p = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+  };
+  const [startAt, setStartAt] = useState<string>(examToEdit?.start_at ? toLocalInput(examToEdit.start_at) : '');
+  const [endAt, setEndAt] = useState<string>(examToEdit?.end_at ? toLocalInput(examToEdit.end_at) : '');
 
   // Chế độ Public vs Private giao theo lớp
   const [isPrivate, setIsPrivate] = useState<boolean>(examToEdit?.is_private || false);

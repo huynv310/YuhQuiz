@@ -170,16 +170,23 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
 
     async function init() {
       // Lấy giờ server 1 lần để tính offset so với đồng hồ máy học sinh
+      // Chốt 1 lần duy nhất: giờ server về sau 5s (mạng yếu) bị bỏ qua, để đồng hồ không bị treo
+      // chờ mãi và offset không đổi giữa lúc đang đếm ngược.
+      let settled = false;
+      const settleClock = (offsetMs: number | null) => {
+        if (settled) return;
+        settled = true;
+        if (offsetMs !== null && Number.isFinite(offsetMs)) {
+          setServerTimeOffsetMs(offsetMs);
+          setClockSync('synced');
+        } else {
+          setClockSync('failed');
+        }
+      };
+      setTimeout(() => settleClock(null), 5000);
       supabase.rpc('server_now').then(
-        ({ data: serverTime }) => {
-          if (serverTime) {
-            setServerTimeOffsetMs(new Date(serverTime).getTime() - Date.now());
-            setClockSync('synced');
-          } else {
-            setClockSync('failed');
-          }
-        },
-        () => setClockSync('failed')
+        ({ data: serverTime }) => settleClock(serverTime ? new Date(serverTime).getTime() - Date.now() : null),
+        () => settleClock(null)
       );
 
       // Đề thi và bản nộp/nháp không phụ thuộc nhau → gọi song song thay vì tuần tự,
@@ -360,8 +367,8 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
   const duration = exam?.duration_minutes || 0;
   const timeLeft = useExamTimer(
     duration, `${examId}_${sessionToken}`, handleTimeOut, isSubmitted, serverTimeOffsetMs,
-    clockSync !== 'pending',
-    clockSync === 'synced' && serverStartedAt ? Date.parse(serverStartedAt) : null
+    clockSync,
+    serverStartedAt ? Date.parse(serverStartedAt) : null
   );
 
   const handlePointerDown = (e: React.PointerEvent) => {

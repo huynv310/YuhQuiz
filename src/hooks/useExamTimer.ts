@@ -6,8 +6,8 @@ export function useExamTimer(
   onTimeOut: () => void,
   isSubmitted: boolean = false,
   serverTimeOffsetMs: number = 0,
-  /** false cho tới khi đã thử lấy giờ server xong — tránh chốt hạn nộp theo offset 0 rồi bị lệch. */
-  clockReady: boolean = true,
+  /** 'pending': chưa đếm, tránh chốt hạn nộp theo offset 0 rồi bị lệch. Offset không đổi sau khi đã chốt. */
+  clock: 'pending' | 'synced' | 'failed' = 'failed',
   /** started_at (ms, giờ server) của phiên — nguồn chuẩn, khớp đúng hạn mà server dùng để chặn nộp muộn. */
   serverStartedAtMs: number | null = null
 ) {
@@ -19,17 +19,19 @@ export function useExamTimer(
 
   useEffect(() => {
     // Nếu đã nộp bài hoặc chưa tải xong thời gian làm bài (> 0 phút) thì không đếm
-    if (isSubmitted || !durationMinutes || durationMinutes <= 0 || !clockReady) {
+    if (isSubmitted || !durationMinutes || durationMinutes <= 0 || clock === 'pending') {
       return;
     }
 
     // now() dùng giờ server bù trừ, không tin tuyệt đối đồng hồ máy học sinh
     const now = () => Date.now() + offsetRef.current;
 
-    // v2: bỏ các mốc cũ từng bị tính với offset 0 (máy chạy chậm giờ → bị tự nộp sớm)
-    const expireKey = `exam_expire_v2_${sessionKey}_${durationMinutes}`;
+    // Mốc lưu trong máy ghi kèm hệ giờ đã dùng để tính (giờ server / giờ máy), không bao giờ
+    // đem mốc của hệ này so với now() của hệ kia — lệch đồng hồ máy sẽ thành nộp sớm.
+    // v2: bỏ các mốc cũ từng bị tính với offset 0.
+    const expireKey = `exam_expire_v2_${clock === 'synced' ? 'srv' : 'dev'}_${sessionKey}_${durationMinutes}`;
     const stored = parseInt(localStorage.getItem(expireKey) || '', 10);
-    const targetMs = serverStartedAtMs
+    const targetMs = clock === 'synced' && serverStartedAtMs
       ? serverStartedAtMs + durationMinutes * 60 * 1000
       : Number.isFinite(stored) ? stored : now() + durationMinutes * 60 * 1000;
     if (targetMs !== stored) localStorage.setItem(expireKey, targetMs.toString());
@@ -57,7 +59,7 @@ export function useExamTimer(
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [durationMinutes, sessionKey, isSubmitted, clockReady, serverStartedAtMs]);
+  }, [durationMinutes, sessionKey, isSubmitted, clock, serverStartedAtMs]);
 
   // Trả về số giây còn lại, hoặc mặc định theo số phút của đề thi nếu chưa khởi tạo xong
   if (secondsRemaining !== null) {

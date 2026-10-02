@@ -346,9 +346,7 @@ export const SnipperModal: React.FC<Props> = ({ userId, tagHints = [], onClose, 
             {error && <p className="text-rose-600">{error}</p>}
             <button onClick={save} disabled={saving} className="w-full py-2.5 rounded-xl bg-emerald-600 text-white font-bold flex items-center justify-center gap-2 disabled:opacity-50">
               <Save className="w-4 h-4" /> {saving ? 'Đang lưu…' : 'Lưu vào Kho bài tập'}
-            </button>
-            <p className="text-xs text-slate-400">Ảnh được nén WebP (≤1000px) trước khi upload để tiết kiệm dung lượng.</p>
-          </div>
+            </button>          </div>
         </div>
       </div>
     </div>

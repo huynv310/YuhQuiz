@@ -83,9 +83,7 @@ export const ScoreDistributionChart: React.FC<ScoreDistributionChartProps> = ({ 
             <BarChart3 className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="font-extrabold text-sm text-gray-900">Phổ Điểm & Đường Cong Phân Phối Chuẩn</h3>
-            <p className="text-[11px] text-gray-400">Đánh giá độ phân hóa và độ khó của đề thi</p>
-          </div>
+            <h3 className="font-extrabold text-sm text-gray-900">Phổ Điểm & Đường Cong Phân Phối Chuẩn</h3>          </div>
         </div>
 
         <div className="flex items-center space-x-2 text-[11px] font-bold">

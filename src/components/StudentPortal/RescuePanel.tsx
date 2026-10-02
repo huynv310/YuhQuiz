@@ -58,6 +58,8 @@ export const RescuePanel: React.FC<Props> = ({ currentUser, submittedTokens, exa
     refresh();
   };
 
+  if (items.length === 0 && !note) return null;
+
   return (
     <div className="glass-panel rounded-3xl p-5 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -66,9 +68,7 @@ export const RescuePanel: React.FC<Props> = ({ currentUser, submittedTokens, exa
         </span>
       </div>
       {note && <p className="text-xs text-slate-600">{note}</p>}
-      {items.length === 0 ? (
-        <p className="text-xs text-slate-400">Không có bài nào bị kẹt. Nếu mất mạng lúc thi, bài làm sẽ được giữ tại đây.</p>
-      ) : items.map(r => (
+      {items.map(r => (
         <div key={r.sessionToken} className="rounded-2xl bg-white/60 border border-white/70 p-3 flex flex-wrap items-center gap-2">
           <div className="flex-1 min-w-[180px]">
             <div className="font-bold text-sm text-slate-900">{r.examTitle || examTitleOf(r.examId) || `Đề ${r.examId.slice(0, 8)}`}</div>

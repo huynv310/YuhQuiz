@@ -466,7 +466,7 @@ export const ExamManager: React.FC<TeacherDashboardProps> = ({
                       </span>
                     </div>
                     <p className="text-[11px] text-gray-400 mt-0.5">
-                      Đồng bộ bài nộp thời gian thực • Tổng số bài thi: <b>{submissions.length}</b>
+                      Tổng số bài thi: <b>{submissions.length}</b>
                     </p>
                   </div>
 
@@ -1037,9 +1037,7 @@ export const ExamManager: React.FC<TeacherDashboardProps> = ({
           <div className="glass-panel w-full max-w-5xl h-[90vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden">
             <div className="px-6 py-4 border-b border-white/60 flex items-center justify-between bg-white/40">
               <div>
-                <h3 className="font-extrabold text-lg text-gray-900 leading-tight">Xem trước đề: {examToPreview.title}</h3>
-                <p className="text-xs text-gray-500 mt-1">Giao diện xem trước nội dung đề thi dành cho giáo viên.</p>
-              </div>
+                <h3 className="font-extrabold text-lg text-gray-900 leading-tight">Xem trước đề: {examToPreview.title}</h3>              </div>
               <button
                 onClick={() => setExamToPreview(null)}
                 className="w-8 h-8 rounded-full bg-gray-200 hover:bg-rose-100 hover:text-rose-600 flex items-center justify-center transition-all"

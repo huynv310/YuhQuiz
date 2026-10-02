@@ -127,7 +127,6 @@ export const AutoGenExamModal: React.FC<Props> = ({ questions, currentUser, onCl
             </div>
 
             {error && <p className="text-rose-600">{error}</p>}
-            <p className="text-xs text-slate-400">Đề tự sắp xếp theo Phần I → II → III, thang 10 điểm chia 3:4:3 cho các phần có câu hỏi (phần vắng thì dồn điểm cho phần còn lại). Thứ tự câu trong mỗi phần giữ theo ma trận.</p>
             <button onClick={generate} disabled={busy} className="w-full py-2.5 rounded-xl bg-emerald-600 text-white font-bold disabled:opacity-50">
               {busy ? 'Đang tạo…' : 'Tạo đề'}
             </button>

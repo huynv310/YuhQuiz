@@ -1175,9 +1175,6 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
                   <span className="text-3xl md:text-4xl font-extrabold text-primary">{result ? result.score : '...'}</span>
                   <span className="text-xs md:text-sm font-semibold text-gray-500">/ 10.0 điểm</span>
                 </div>
-                <p className="text-[11px] text-gray-500 mt-1">
-                  Xem chi tiết đáp án đúng/sai từng câu để đối chiếu ôn tập. Cảm biến chống gian lận đã được tự động tắt.
-                </p>
               </div>
             )}
 
@@ -1250,7 +1247,7 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
                 <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-4">
                   <div>
                     <h2 className="font-bold text-sm text-gray-900">PHẦN II. Trắc nghiệm Đúng / Sai</h2>
-                    <p className="text-[11px] text-gray-400">4 ý a, b, c, d xếp dọc • Thang lũy tiến 10% - 25% - 50% - 100%</p>
+                    <p className="text-[11px] text-gray-400">Chọn Đúng/Sai cho từng ý a, b, c, d</p>
                   </div>
                   <span className="text-xs bg-gray-100 text-gray-700 px-2.5 py-1 rounded-full font-bold">
                     {p2Count} câu

@@ -424,9 +424,6 @@ export const CreateExamModal: React.FC<CreateExamModalProps> = ({
           <h3 className="font-extrabold text-base md:text-lg text-gray-900 leading-tight">
             {isEditing ? 'Chỉnh Sửa Kỳ Thi' : 'Thiết Lập Kỳ Thi & Preset Đa Môn Học'}
           </h3>
-          <p className="text-xs text-gray-400 mt-0.5">
-            Tự động cấu hình chuẩn theo quy chế Bộ Giáo dục & Đào tạo từ 2025
-          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto py-4 space-y-4 text-xs pr-1">
@@ -753,7 +750,7 @@ export const CreateExamModal: React.FC<CreateExamModalProps> = ({
               </label>
             </div>
             <p className="text-[11px] text-gray-500 mt-1">
-              Nên dưới 3MB (đề nặng hơn sẽ được tự động nén), tối đa 100MB. File chỉ thật sự được lưu khi bạn bấm "Tạo đề thi".
+              Tối đa 100MB.
             </p>
           </div>
 
@@ -793,8 +790,7 @@ PHẦN III: 1:1,5 2:1.5 3:-1 4:-1 5:-1 6:-1`}
                   onChange={(e) => setBatchText(e.target.value)}
                   className="w-full p-2.5 text-[11px] font-mono bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-primary"
                 />
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-gray-400">Tự động nhận diện cả trên cùng 1 dòng và cập nhật xuống các ô bên dưới</span>
+                <div className="flex items-center justify-end">
                   <button
                     type="button"
                     onClick={handleBatchParse}

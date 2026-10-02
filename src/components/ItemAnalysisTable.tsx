@@ -74,9 +74,6 @@ export const ItemAnalysisTable: React.FC<ItemAnalysisTableProps> = ({ exam, subm
           <h3 className="font-extrabold text-sm text-gray-900 flex items-center space-x-1.5">
             <span>Ma Trận Độ Khó & Tỷ Lệ Làm Đúng (Pᵢ)</span>
           </h3>
-          <p className="text-[11px] text-gray-400 mt-0.5">
-            Xác định câu hỏi phân hóa và các câu học sinh thường xuyên làm sai
-          </p>
         </div>
 
         <div className="flex items-center space-x-2 text-[10px] font-bold">

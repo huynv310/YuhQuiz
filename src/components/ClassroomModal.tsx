@@ -311,9 +311,7 @@ export const ClassroomModal: React.FC<ClassroomModalProps> = ({ currentUser, onC
             <Users className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="font-extrabold text-lg text-gray-900 leading-tight">Quản Lý Lớp Học & Thành Viên</h3>
-            <p className="text-xs text-gray-400">Xem sĩ số thực tế, điểm trung bình từng em, cấp mã tham gia hoặc giải tán lớp</p>
-          </div>
+            <h3 className="font-extrabold text-lg text-gray-900 leading-tight">Quản Lý Lớp Học & Thành Viên</h3>          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 mt-4 flex-1 overflow-hidden">

@@ -152,10 +152,6 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ exam, submis
             })
           )}
         </div>
-
-        <div className="pt-3 mt-3 border-t border-gray-100 text-center text-[11px] text-gray-400">
-          Chỉ tôn vinh top 20% thí sinh có kết quả cao nhất để khích lệ tinh thần học tập tích cực.
-        </div>
       </div>
     </div>
   );

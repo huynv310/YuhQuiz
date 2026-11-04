@@ -20,6 +20,8 @@ type TabType = 'exams' | 'profile' | 'practice' | 'notebook' | 'radar' | 'leader
 
 export const StudentPortal: React.FC<StudentPortalProps> = (props) => {
   const [activeTab, setActiveTab] = useState<TabType>('exams');
+  // State quản lý mở rộng khi hover trên máy tính (In-flow Push)
+  const [isSidebarHovered, setIsSidebarHovered] = useState<boolean>(false);
 
   const renderContent = () => {
     switch (activeTab) {
@@ -60,10 +62,19 @@ export const StudentPortal: React.FC<StudentPortalProps> = (props) => {
     }
   };
 
+  const navItems = [
+    { id: 'exams', label: 'Danh sách thi', icon: BookOpen },
+    { id: 'practice', label: 'Luyện tập', icon: Dumbbell },
+    { id: 'leaderboard', label: 'Xếp Hạng', icon: Trophy },
+    { id: 'notebook', label: 'Sổ tay SM-2', icon: BookMarked },
+    { id: 'radar', label: 'Phân tích Lỗ hổng', icon: Activity },
+    { id: 'profile', label: 'Hồ sơ cá nhân', icon: UserCircle },
+  ];
+
   return (
     <div className="flex flex-col md:flex-row h-screen overflow-hidden font-sans">
       
-      {/* ── MOBILE HEADER (CHỐNG LẤN CHIẾM DIỆN TÍCH TRÊN MÀN HÌNH NHỎ) ── */}
+      {/* ── MOBILE HEADER (MÀN HÌNH NHỎ) ── */}
       <header className="md:hidden h-14 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 flex items-center justify-between z-30 shrink-0">
         <div className="flex items-center space-x-2.5">
           <LogoMark className="w-7 h-7" />
@@ -99,13 +110,24 @@ export const StudentPortal: React.FC<StudentPortalProps> = (props) => {
         </div>
       </header>
 
-      {/* ── DESKTOP SIDEBAR (CHỈ HIỂN THỊ TỪ MÀN HÌNH MD TRỞ LÊN) ── */}
-      <aside className="glass-panel !rounded-none !border-y-0 !border-l-0 hidden md:flex md:w-64 flex-col transition-all shrink-0 z-40">
-        
+      {/* ── DESKTOP SIDEBAR: TỰ ĐỘNG THU GỌN VÀ MỞ RỘNG KHI HOVER (IN-FLOW PUSH) ── */}
+      <aside
+        onMouseEnter={() => setIsSidebarHovered(true)}
+        onMouseLeave={() => setIsSidebarHovered(false)}
+        className={`glass-panel !rounded-none !border-y-0 !border-l-0 hidden md:flex flex-col transition-[width] duration-300 ease-in-out shrink-0 z-40 overflow-hidden ${
+          isSidebarHovered ? 'w-64' : 'w-16'
+        }`}
+      >
         {/* LOGO */}
-        <div className="h-16 flex items-center justify-start px-6 border-b border-slate-100">
-          <LogoMark className="w-8 h-8" />
-          <div className="ml-3 leading-tight">
+        <div className="h-16 flex items-center px-4 border-b border-slate-100 overflow-hidden shrink-0">
+          <div className="w-8 h-8 shrink-0 flex items-center justify-center">
+            <LogoMark className="w-8 h-8" />
+          </div>
+          <div
+            className={`ml-3 leading-tight overflow-hidden whitespace-nowrap transition-all duration-300 ${
+              isSidebarHovered ? 'opacity-100 max-w-[180px] translate-x-0' : 'opacity-0 max-w-0 -translate-x-2 pointer-events-none'
+            }`}
+          >
             <span className="font-heading font-extrabold text-lg tracking-tight text-slate-800 block leading-tight">
               YuhQuiz
             </span>
@@ -114,106 +136,75 @@ export const StudentPortal: React.FC<StudentPortalProps> = (props) => {
         </div>
 
         {/* MENU ITEMS */}
-        <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
-          <button
-            onClick={() => setActiveTab('exams')}
-            className={`w-full flex items-center p-2.5 rounded-xl transition-all ${
-              activeTab === 'exams'
-                ? 'bg-emerald-50 text-emerald-700 font-bold'
-                : 'text-slate-600 hover:bg-white/60 font-medium'
-            }`}
-          >
-            <BookOpen className="w-5 h-5 flex-shrink-0" />
-            <span className="ml-3">Danh sách thi</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('practice')}
-            className={`w-full flex items-center p-2.5 rounded-xl transition-all ${
-              activeTab === 'practice'
-                ? 'bg-emerald-50 text-emerald-700 font-bold'
-                : 'text-slate-600 hover:bg-white/60 font-medium'
-            }`}
-          >
-            <Dumbbell className="w-5 h-5 flex-shrink-0" />
-            <span className="ml-3">Luyện tập</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('leaderboard')}
-            className={`w-full flex items-center p-2.5 rounded-xl transition-all ${
-              activeTab === 'leaderboard'
-                ? 'bg-emerald-50 text-emerald-700 font-bold'
-                : 'text-slate-600 hover:bg-white/60 font-medium'
-            }`}
-          >
-            <Trophy className="w-5 h-5 flex-shrink-0" />
-            <span className="ml-3">Xếp Hạng</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('notebook')}
-            className={`w-full flex items-center p-2.5 rounded-xl transition-all ${
-              activeTab === 'notebook'
-                ? 'bg-emerald-50 text-emerald-700 font-bold'
-                : 'text-slate-600 hover:bg-white/60 font-medium'
-            }`}
-          >
-            <BookMarked className="w-5 h-5 flex-shrink-0" />
-            <span className="ml-3">Sổ tay SM-2</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('radar')}
-            className={`w-full flex items-center p-2.5 rounded-xl transition-all ${
-              activeTab === 'radar'
-                ? 'bg-emerald-50 text-emerald-700 font-bold'
-                : 'text-slate-600 hover:bg-white/60 font-medium'
-            }`}
-          >
-            <Activity className="w-5 h-5 flex-shrink-0" />
-            <span className="ml-3">Phân tích Lỗ hổng</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('profile')}
-            className={`w-full flex items-center p-2.5 rounded-xl transition-all ${
-              activeTab === 'profile'
-                ? 'bg-emerald-50 text-emerald-700 font-bold'
-                : 'text-slate-600 hover:bg-white/60 font-medium'
-            }`}
-          >
-            <UserCircle className="w-5 h-5 flex-shrink-0" />
-            <span className="ml-3">Hồ sơ cá nhân</span>
-          </button>
+        <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto overflow-x-hidden">
+          {navItems.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => setActiveTab(id as TabType)}
+              title={!isSidebarHovered ? label : undefined}
+              className={`w-full flex items-center p-2.5 rounded-xl transition-all ${
+                isSidebarHovered ? 'px-3 justify-start' : 'justify-center'
+              } ${
+                activeTab === id
+                  ? 'bg-emerald-50 text-emerald-700 font-bold'
+                  : 'text-slate-600 hover:bg-white/60 font-medium'
+              }`}
+            >
+              <Icon className="w-5 h-5 flex-shrink-0" />
+              <span
+                className={`ml-3 whitespace-nowrap overflow-hidden transition-all duration-300 ${
+                  isSidebarHovered ? 'opacity-100 max-w-[180px] translate-x-0' : 'opacity-0 max-w-0 -translate-x-2 pointer-events-none'
+                }`}
+              >
+                {label}
+              </span>
+            </button>
+          ))}
         </nav>
 
         {/* FOOTER ACTIONS */}
-        <div className="p-3 border-t border-slate-100 space-y-2">
+        <div className="p-2.5 border-t border-slate-100 space-y-2 shrink-0 overflow-hidden">
           {props.onSwitchToTeacher && (
             <button
               onClick={props.onSwitchToTeacher}
-              className="w-full flex items-center p-3 rounded-xl text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 transition-all font-medium group"
-              title="Quản trị Giáo Viên"
+              title={!isSidebarHovered ? 'Đổi sang Giáo Viên' : undefined}
+              className={`w-full flex items-center p-2.5 rounded-xl text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 transition-all font-medium group ${
+                isSidebarHovered ? 'px-3 justify-start' : 'justify-center'
+              }`}
             >
               <ShieldCheck className="w-5 h-5 flex-shrink-0 group-hover:text-emerald-700" />
-              <span className="ml-3">Đổi sang Giáo Viên</span>
+              <span
+                className={`ml-3 whitespace-nowrap overflow-hidden transition-all duration-300 ${
+                  isSidebarHovered ? 'opacity-100 max-w-[180px] translate-x-0' : 'opacity-0 max-w-0 -translate-x-2 pointer-events-none'
+                }`}
+              >
+                Đổi sang Giáo Viên
+              </span>
             </button>
           )}
 
           {props.onLogout && (
             <button
               onClick={props.onLogout}
-              className="w-full flex items-center p-3 rounded-xl text-slate-600 hover:bg-rose-50 hover:text-rose-600 transition-all font-medium group"
+              title={!isSidebarHovered ? 'Đăng xuất' : undefined}
+              className={`w-full flex items-center p-2.5 rounded-xl text-slate-600 hover:bg-rose-50 hover:text-rose-600 transition-all font-medium group ${
+                isSidebarHovered ? 'px-3 justify-start' : 'justify-center'
+              }`}
             >
               <LogOut className="w-5 h-5 flex-shrink-0 group-hover:text-rose-600" />
-              <span className="ml-3">Đăng xuất</span>
+              <span
+                className={`ml-3 whitespace-nowrap overflow-hidden transition-all duration-300 ${
+                  isSidebarHovered ? 'opacity-100 max-w-[180px] translate-x-0' : 'opacity-0 max-w-0 -translate-x-2 pointer-events-none'
+                }`}
+              >
+                Đăng xuất
+              </span>
             </button>
           )}
         </div>
       </aside>
 
-      {/* ── MAIN CONTENT (TỰ DO 100% CHIỀU RỘNG TRÊN MOBILE, KHÔNG BỊ ÉP 80PX) ── */}
+      {/* ── MAIN CONTENT (TỰ ĐỘNG DỊCH CHUYỂN KHI THANH BÊN MỞ RỘNG) ── */}
       <main className="flex-1 overflow-y-auto relative pb-20 md:pb-0">
         {renderContent()}
       </main>

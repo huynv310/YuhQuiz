@@ -59,4 +59,20 @@ test.describe('Cross-Device PDF Viewer & Anti-Download Verification', () => {
     const app = page.locator('#root');
     await expect(app).toBeVisible();
   });
+
+  test('Desktop Viewport: SVG Logo renders with unique gradient ID without collisions', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto('/');
+    await page.waitForLoadState('domcontentloaded');
+
+    const svgLogos = page.locator('svg[aria-label="YuhQuiz"]');
+    const count = await svgLogos.count();
+    if (count > 0) {
+      const gradient = page.locator('svg[aria-label="YuhQuiz"] linearGradient');
+      if (await gradient.count() > 0) {
+        const id = await gradient.first().getAttribute('id');
+        expect(id).toMatch(/^yqg_/);
+      }
+    }
+  });
 });

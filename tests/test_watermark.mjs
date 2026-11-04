@@ -1,5 +1,16 @@
+import { build } from 'esbuild';
 import assert from 'node:assert/strict';
-import { buildAdversarialWatermarkText, stampWatermarkOnCanvas } from '../src/utils/watermark.ts';
+
+// Compile TypeScript utility via esbuild to ensure 100% compatibility with Node 18/20/22 in CI
+const out = await build({
+  entryPoints: ['src/utils/watermark.ts'],
+  bundle: true,
+  format: 'esm',
+  write: false,
+});
+const { buildAdversarialWatermarkText, stampWatermarkOnCanvas } = await import(
+  'data:text/javascript;base64,' + Buffer.from(out.outputFiles[0].text).toString('base64')
+);
 
 console.log('--- BẮT ĐẦU KIỂM THỬ BỘ TẠO WATERMARK & ADVERSARIAL PROMPT INJECTION ---');
 

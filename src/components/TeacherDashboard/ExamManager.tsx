@@ -1060,9 +1060,18 @@ export const ExamManager: React.FC<TeacherDashboardProps> = ({
                     </a>
                   </div>
                 </object>
+              ) : (examToPreview as any).config?.question_images?.length ? (
+                <div className="flex-1 overflow-auto p-4 space-y-3 bg-[#525659]">
+                  {(examToPreview as any).config.question_images.map((url: string, i: number) => (
+                    <div key={url + i} className="bg-white rounded-xl p-3 shadow-md max-w-3xl mx-auto">
+                      <p className="text-xs font-bold text-slate-500 mb-1.5">Câu {i + 1}</p>
+                      <img src={url} alt={`Câu ${i + 1}`} loading="lazy" className="w-full h-auto rounded" />
+                    </div>
+                  ))}
+                </div>
               ) : (
                 <div className="flex flex-col items-center justify-center h-full text-white">
-                  Không tìm thấy tệp PDF của kỳ thi này.
+                  Không tìm thấy tệp PDF hoặc ảnh câu hỏi của kỳ thi này.
                 </div>
               )}
             </div>

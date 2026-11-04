@@ -267,10 +267,10 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
     submitLockRef.current = true;
     setIsSubmitting(true);
 
-    // THUẬT TOÁN JITTER: Phân tán tải mạng nếu nộp tự động khi hết giờ
+    // THUẬT TOÁN JITTER AN TOÀN: Tản nhẹ xung nhịp CPU/mạng client (tối đa 1.5s thay vì 45s để tránh treo)
     if (isAutoSubmit) {
       setIsJittering(true);
-      const jitterDelay = Math.floor(Math.random() * 45000); // 0-45s: rải đỉnh tải lúc cả lớp cùng hết giờ
+      const jitterDelay = Math.floor(Math.random() * 1500); // 0-1.5s: vừa đủ tản xung nhịp, không gây đứng hình
       await new Promise(resolve => setTimeout(resolve, jitterDelay));
       setIsJittering(false);
     }
@@ -373,6 +373,39 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
     clockSync,
     serverStartedAt ? Date.parse(serverStartedAt) : null
   );
+
+  // KHÓA ĐÓNG TAB KHI ĐANG NỘP BÀI (Chống mất bài nếu học sinh vội tắt trình duyệt)
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isSubmitting || isJittering) {
+        e.preventDefault();
+        e.returnValue = 'Bài thi đang được nộp và chấm điểm, vui lòng không tắt trang web!';
+        return e.returnValue;
+      }
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [isSubmitting, isJittering]);
+
+  // TỰ ĐỘNG LƯU NHÁP LÊN SERVER TRƯỚC KHI HẾT GIỜ (Khi còn <= 15s)
+  const preTimeoutDraftSaved = useRef(false);
+  useEffect(() => {
+    if (isSubmitted || isReview || timeLeft > 15 || timeLeft <= 0 || preTimeoutDraftSaved.current) return;
+    preTimeoutDraftSaved.current = true;
+    (async () => {
+      try {
+        await supabase.rpc('save_draft', {
+          p_exam_id: examId,
+          p_session_token: sessionToken,
+          p_student_name: studentName,
+          p_class_name: className,
+          p_answers: answers,
+          p_cheat_count: cheatCount,
+          p_total_away_seconds: totalAwaySecs,
+        });
+      } catch { /* noop */ }
+    })();
+  }, [timeLeft, isSubmitted, isReview, examId, sessionToken, studentName, className, answers, cheatCount, totalAwaySecs]);
 
   const handlePointerDown = (e: React.PointerEvent) => {
     e.currentTarget.setPointerCapture(e.pointerId);

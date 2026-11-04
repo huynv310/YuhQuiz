@@ -26,15 +26,35 @@ export function shuffle<T>(arr: T[], rng: () => number = Math.random): T[] {
   return a;
 }
 
-/** Chọn ngẫu nhiên theo ma trận (#tag × mức độ × số câu); không trùng câu giữa các dòng. */
+/**
+ * Chọn ngẫu nhiên theo ma trận (#tag × mức độ × số câu); không trùng câu giữa các dòng.
+ * Áp dụng chiến lược Most-Constrained-First: Ưu tiên bốc các dòng có #tag cụ thể và độ hiếm cao trước,
+ * tránh thuật toán tham lam tuần tự làm cướp câu của các dòng có điều kiện hẹp hơn.
+ */
 export function pickRandomByMatrix<T extends BankQuestion>(
   bank: T[],
   matrix: MatrixRow[],
   rng: () => number = Math.random,
 ): { questions: T[] } | { error: string } {
+  // Gắn chỉ số ban đầu để bảo toàn đúng thứ tự các dòng ma trận sau khi chọn
+  const indexed = matrix.map((row, idx) => {
+    const matchingCount = bank.filter(
+      q => (q.part ?? 1) === row.part && (!row.tag || (q.topic_tags || []).includes(row.tag)) && q.difficulty === row.difficulty
+    ).length;
+    return { row, idx, matchingCount, hasTag: Boolean(row.tag) };
+  });
+
+  // Ưu tiên dòng có tag cụ thể trước, rồi đến dòng có ít câu phù hợp trong kho hơn
+  indexed.sort((a, b) => {
+    if (a.hasTag !== b.hasTag) return a.hasTag ? -1 : 1;
+    return a.matchingCount - b.matchingCount;
+  });
+
   const used = new Set<string>();
-  const out: T[] = [];
-  for (const row of matrix) {
+  const resultMap = new Map<number, T[]>();
+
+  for (const item of indexed) {
+    const { row, idx } = item;
     const pool = shuffle(
       bank.filter(q => (q.part ?? 1) === row.part && (!row.tag || (q.topic_tags || []).includes(row.tag)) && q.difficulty === row.difficulty && !used.has(q.id)),
       rng,
@@ -42,10 +62,18 @@ export function pickRandomByMatrix<T extends BankQuestion>(
     if (pool.length < row.count) {
       return { error: `Phần ${row.part} · ${row.tag ? `#${row.tag} ` : ""}mức ${row.difficulty} chỉ còn ${pool.length}/${row.count} câu.` };
     }
-    for (const q of pool.slice(0, row.count)) {
+    const chosen = pool.slice(0, row.count);
+    for (const q of chosen) {
       used.add(q.id);
-      out.push(q);
     }
+    resultMap.set(idx, chosen);
+  }
+
+  // Khôi phục chính xác thứ tự dòng ma trận ban đầu
+  const out: T[] = [];
+  for (let i = 0; i < matrix.length; i++) {
+    const qs = resultMap.get(i) || [];
+    out.push(...qs);
   }
   return { questions: out };
 }

@@ -12,16 +12,16 @@
 
 * **Bắt buộc đăng nhập:** giáo viên và học sinh đều phải có tài khoản. Phiên đăng nhập giữ bằng **cookie httpOnly** qua lớp BFF (`/api/auth/*`), token không nằm trong `localStorage`.
 * **Đáp án nằm ở server:** bảng `exam_answer_keys` không cho học sinh đọc. Việc chấm, chấm lại và thu bài đều chạy bằng RPC phía Postgres, có kiểm tra quyền (RLS).
-* **Kho bài tập & Luyện tập:** giáo viên cắt câu hỏi từ PDF, dựng đề ngẫu nhiên từ kho; học sinh luyện tập tự do và xem lời giải.
-* **Cứu hộ bài thi khi mất mạng:** xuất file `.yuhquiz` để nộp lại hoặc để giáo viên nhập thay.
+* **Kho bài tập & Luyện tập:** giáo viên cắt câu hỏi từ PDF, dựng đề ngẫu nhiên theo ma trận từ kho bài tập với trình biên dịch PDF vector chuẩn A4; học sinh luyện tập tự do và xem lời giải.
+* **Cứu hộ bài thi khi mất mạng:** xuất file `.yuhquiz` để nộp lại hoặc để giáo viên nhập thay, hỗ trợ bộ nhớ đệm an toàn khi duyệt web ẩn danh (incognito).
 
 ### 🎯 Tính Năng Chính
 
 ### 1. Phòng Thi Thí Sinh
 * **Giao diện Split-View** (đề bên trái, phiếu trả lời bên phải, thanh kéo tỷ lệ) và bố cục riêng cho điện thoại: thanh khoanh đáp án nhanh, tự chuyển câu, nút Đúng/Sai cỡ lớn, ma trận câu hỏi.
 * **Màn hình chuẩn bị thi:** hiển thị tên đề, môn, lớp, giáo viên, thời lượng, hạn nộp; bấm *Bắt đầu* mới vào phòng thi. Quét QR khi chưa đăng nhập sẽ đăng nhập trước rồi vào thẳng màn hình này.
-* **Giám sát chống gian lận:** ghi nhận chuyển tab, mất tiêu điểm, thoát toàn màn hình, phím tắt bị cấm; nhật ký (telemetry) giáo viên xem được khi mở bài nộp. Tự tắt hoàn toàn sau khi nộp bài.
-* **Lưu bài 2 tầng:** `localStorage` tức thì và đồng bộ định kỳ lên Supabase; đồng hồ đếm ngược neo theo mốc thời gian.
+* **Giám sát chống gian lận:** ghi nhận chuyển tab, mất tiêu điểm, thoát toàn màn hình, phím tắt bị cấm; nhật ký (telemetry) giáo viên xem được khi mở bài nộp. Tự động nhận diện bàn phím ảo di động (`isInputFocused`) để loại bỏ cảnh báo giả mạo. Tự tắt hoàn toàn sau khi nộp bài.
+* **Lưu bài 2 tầng & Đồng bộ thông minh:** `localStorage` tức thì (kèm in-memory fallback), tự động lưu nháp qua RPC `save_draft` khi thời gian $\le 15\text{s}$, độ trễ ngẫu nhiên an toàn $0 \dots 1.5\text{s}$, cảnh báo chống rời trang khi đang gửi bài.
 * **Cứu hộ:** nếu nộp lỗi do mất mạng, bài được giữ trong *Lịch sử thi → Bài làm chưa nộp được*; học sinh **Nộp lại** khi có mạng, hoặc **Xuất file** cho giáo viên nhập.
 * **Xem lại bài & lời giải** sau khi nộp: đáp án đã chọn, đáp án đúng, lời giải chi tiết (văn bản, ảnh, PDF).
 
@@ -34,7 +34,7 @@
 ### 3. Trung Tâm Quản Trị Giáo Viên
 * **Kho bài tập:** cắt câu hỏi trực tiếp từ PDF (ảnh WebP lưu Storage), phân loại theo môn, khối, `#hashtag`; sửa môn/khối/dạng/đáp án/lời giải; bật hoặc tắt cho phép luyện tập từng câu.
 * **Lời giải chi tiết:** văn bản, dán ảnh (Ctrl+V), đính kèm PDF ≤ 2 MB (tối đa 5 tệp/câu).
-* **Tạo đề:** thủ công (upload PDF, dán đáp án hàng loạt) hoặc **tự sinh ngẫu nhiên** từ kho câu hỏi (tỉ lệ điểm 3:4:3). Mã đề 6 ký tự dạng `T1A2B3`, khối lớp 1–12, tối đa 100 câu/phần, tìm theo tên hoặc mã, nhóm theo môn.
+* **Tạo đề:** thủ công (upload PDF, dán đáp án hàng loạt) hoặc **tự sinh ngẫu nhiên theo ma trận** từ kho câu hỏi. Đề tự sinh được tổng hợp thành tệp PDF khổ chuẩn A4 phía client (pdf-lib) kèm header, số trang, đánh số câu và cơ chế deduplication hash SHA-256 trên Supabase Storage. Thuật toán bốc đề ma trận theo độ ưu tiên Most-Constrained-First (chống deadlock tham lam), giao dịch nguyên tử qua RPC `create_exam_from_bank`. Mã đề 6 ký tự dạng `T1A2B3`, khối lớp 1–12, tối đa 100 câu/phần, tìm theo tên hoặc mã, nhóm theo môn.
 * **Phân quyền đề:** công khai hoặc bài tập riêng theo lớp, giao đề kèm thời hạn.
 * **Quản lý lớp:** sĩ số, điểm từng học sinh, QR lớp, giải tán lớp.
 * **Chấm thi:** chấm lại một hoặc toàn bộ bài khi sửa đáp án, buộc thu bài, nhập file cứu hộ, xem đề và bài làm cạnh nhau.
@@ -67,13 +67,13 @@ exam-platform/
 │   ├── pages/                  # LandingPage, LandingScene
 │   ├── hooks/                  # useAntiCheat, useAutoSave, useExamTimer
 │   ├── lib/                    # supabase, session (BFF), rescue, telemetry, examId, imageUpload ...
-│   ├── utils/                  # scoring, answerParser, autoGen, excelExporter, hashtags
+│   ├── utils/                  # scoring, answerParser, autoGen, pdfCompiler, excelExporter, hashtags
 │   ├── constants/, types/
 │   └── App.tsx, main.tsx
 ├── supabase/
 │   ├── schema.sql              # Schema gốc
-│   └── migrations/             # 20 migration (bảo mật, mã đề, kho bài tập, lời giải, mã người dùng, dedup PDF, chịu tải ...)
-├── tests/                      # Unit test + test DB (Postgres nhúng)
+│   └── migrations/             # 27 migration (bảo mật, mã đề, kho bài tập, lời giải, mã người dùng, dedup PDF, chịu tải, autogen pdf & fix leak storage...)
+├── tests/                      # Unit test + test DB (Postgres nhúng PGlite) + E2E (Playwright)
 ├── .github/workflows/          # CI (typecheck, test, build) + keepalive Supabase
 ├── DEPLOY.md                   # Hướng dẫn triển khai + smoke test thủ công
 └── vercel.json                 # Rewrites + header bảo mật (CSP, X-Frame-Options ...)
@@ -124,13 +124,14 @@ Không dùng `service_role` key ở bất kỳ đâu. Không commit tệp `.env`
 
 ```bash
 npm run typecheck   # tsc cho app và api
-npm test            # unit test: chấm điểm, parser, tự sinh đề, BFF
+npm test            # unit test: chấm điểm, parser, tự sinh đề (ma trận & boundary), BFF
 npm run test:db     # RLS, RPC, migration trên Postgres nhúng (PGlite)
+npm run test:e2e    # E2E test giao diện & kiểm thử cận biên bằng Playwright
 npm run build       # typecheck + vite build
-npm run verify      # gộp cả 4 lệnh trên, chạy trước khi commit
+npm run verify      # gộp cả 5 bước trên, chạy kiểm thử toàn diện trước khi commit
 ```
 
-CI (`.github/workflows/ci.yml`) chạy đủ bốn bước trên mỗi push và pull request.
+CI (`.github/workflows/ci.yml`) chạy đủ các bước kiểm thử trên mỗi push và pull request.
 
 ---
 

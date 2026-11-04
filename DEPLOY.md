@@ -22,6 +22,8 @@ npm run typecheck && npm test && npm run test:db && npm run build
    8. `supabase/migrations/20260925_data_cleanup_account_delete.sql` (xóa câu hỏi/đề/sửa lời giải → tự xóa tệp mồ côi trong Storage; `delete_my_account()`; `question_bank.author_id` ON DELETE CASCADE)
    9. `supabase/migrations/20260926_linter_hardening.sql` (search_path cố định, khóa hàm trigger/hàm RLS khỏi anon, bỏ policy liệt kê tệp công khai)
    10. `supabase/migrations/20260927_legacy_cleanup.sql` (bỏ hàm chấm bài cũ, policy `teacher_profiles` luôn-đúng, chuyển `pg_trgm`/`unaccent` sang schema `extensions`)
+   ... các migration tiếp theo đến:
+   27. `supabase/migrations/20261015_fix_autogen_exam_and_storage_leak.sql` (cho phép `pdf_url` nullable cho đề sinh từ kho bài tập, RPC nguyên tử `create_exam_from_bank`, sửa regex giải phóng ảnh câu hỏi 24-char hash trong Storage, nâng cấp thang điểm `submissions` lên `NUMERIC(5,2)`)
 
    Migration **xóa cột `exams.answer_keys`** sau khi chép sang `exam_answer_keys`. Với DB đã có dữ liệu thật: backup trước (Database → Backups, hoặc `pg_dump`).
 3. Authentication → Providers: bật Email (và Google nếu dùng). Authentication → URL Configuration: đặt **Site URL** và **Redirect URLs** = domain Vercel (và `http://localhost:5173` khi dev).

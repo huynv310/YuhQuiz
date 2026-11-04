@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { X, Plus, Trash2, Shuffle } from 'lucide-react';
+import { X, Plus, Trash2, Shuffle, Loader2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { getQuestionImageUrl } from '../../lib/imageUpload';
 import { DIFFICULTY_LABELS } from '../../constants/chapters';
 import { SUBJECT_PRESETS, GRADES } from '../../constants/subjectPresets';
 import { pickRandomByMatrix, assembleExam, MatrixRow, Part } from '../../utils/autoGen';
+import { compileExamPdf } from '../../utils/pdfCompiler';
 
 interface Props {
   questions: any[];
@@ -21,6 +22,7 @@ export const AutoGenExamModal: React.FC<Props> = ({ questions, currentUser, onCl
   const tags = Array.from(new Set(pool.flatMap(q => q.topic_tags || []))).sort();
   const [rows, setRows] = useState<MatrixRow[]>([{ part: 1, tag: '', difficulty: 1, count: 5 }]);
   const [busy, setBusy] = useState(false);
+  const [progressMsg, setProgressMsg] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [doneId, setDoneId] = useState<string | null>(null);
 
@@ -43,18 +45,59 @@ export const AutoGenExamModal: React.FC<Props> = ({ questions, currentUser, onCl
     const qs = asm.ordered;
 
     setBusy(true);
+    setProgressMsg('Đang khởi tạo đề thi...');
+
     try {
+      const questionImageUrls = qs.map(q => q.content_image_url);
+      let compiledPdfUrl: string | null = null;
+
+      // Biên dịch tự động các ảnh câu hỏi thành file PDF A4 chuẩn (Option B - Clean Architecture)
+      try {
+        const compiled = await compileExamPdf({
+          title: title.trim() || 'Đề ngẫu nhiên',
+          subject,
+          grade: Number(grade),
+          durationMinutes: duration,
+          questionImageUrls,
+          onProgress: (msg) => setProgressMsg(msg),
+        });
+        compiledPdfUrl = compiled.pdfUrl;
+      } catch (pdfErr) {
+        console.warn('Không thể tự động xuất PDF, lưu đề dạng ảnh câu hỏi:', pdfErr);
+      }
+
+      setProgressMsg('Đang lưu đề thi vào cơ sở dữ liệu...');
       const config = {
         sections: asm.sections,
         question_images: qs.map(q => getQuestionImageUrl(q.content_image_url)),
         source: 'question_bank',
       };
+
+      // Ưu tiên gọi RPC nguyên tử (Atomic Transaction)
+      const { data: rpcRes, error: rpcErr } = await supabase.rpc('create_exam_from_bank', {
+        p_title: title.trim() || 'Đề ngẫu nhiên',
+        p_subject: subject,
+        p_grade: Number(grade),
+        p_duration_minutes: duration,
+        p_pdf_url: compiledPdfUrl,
+        p_config: config,
+        p_answer_keys: asm.keys,
+        p_solutions: asm.solutions,
+      });
+
+      if (!rpcErr && rpcRes?.id) {
+        setDoneId(rpcRes.short_id || rpcRes.id);
+        return;
+      }
+
+      // Fallback nếu chưa deploy RPC: Insert trực tiếp với pdf_url đã được nới lỏng nullable
       const { data: exam, error: e1 } = await supabase.from('exams').insert({
         title: title.trim() || 'Đề ngẫu nhiên',
         subject,
-        grade,
+        grade: Number(grade),
         teacher_name: currentUser?.full_name || currentUser?.user_metadata?.full_name || '',
         duration_minutes: duration,
+        pdf_url: compiledPdfUrl,
         config,
         is_private: false,
       }).select().single();
@@ -66,11 +109,13 @@ export const AutoGenExamModal: React.FC<Props> = ({ questions, currentUser, onCl
         solutions: asm.solutions,
       });
       if (e2) throw e2;
+
       setDoneId(exam.short_id || exam.id);
     } catch (e: any) {
       setError(e?.message || 'Không tạo được đề');
     } finally {
       setBusy(false);
+      setProgressMsg('');
     }
   };
 
@@ -84,8 +129,8 @@ export const AutoGenExamModal: React.FC<Props> = ({ questions, currentUser, onCl
 
         {doneId ? (
           <div className="space-y-3">
-            <p className="text-emerald-700 font-semibold">Đã tạo đề (mã: {doneId}). Vào tab "Kho đề thi" để giao cho lớp.</p>
-            <button onClick={onClose} className="px-4 py-2 rounded-xl bg-emerald-600 text-white">Đóng</button>
+            <p className="text-emerald-700 font-semibold">Đã tạo đề thi thành công (Mã đề: <span className="font-mono font-bold">{doneId}</span>). Đề đã được ghép file PDF chuẩn để xem và in ấn trong tab "Kho đề thi".</p>
+            <button onClick={onClose} className="px-4 py-2 rounded-xl bg-emerald-600 text-white font-bold">Đóng</button>
           </div>
         ) : (
           <>
@@ -126,9 +171,22 @@ export const AutoGenExamModal: React.FC<Props> = ({ questions, currentUser, onCl
               <button onClick={() => setRows(prev => [...prev, { part: 1 as Part, tag: '', difficulty: 1, count: 5 }])} className="px-3 py-1.5 border rounded-lg flex items-center gap-1"><Plus className="w-4 h-4" /> Thêm dòng ma trận</button>
             </div>
 
-            {error && <p className="text-rose-600">{error}</p>}
-            <button onClick={generate} disabled={busy} className="w-full py-2.5 rounded-xl bg-emerald-600 text-white font-bold disabled:opacity-50">
-              {busy ? 'Đang tạo…' : 'Tạo đề'}
+            {error && <p className="text-rose-600 font-semibold">{error}</p>}
+            {busy && progressMsg && (
+              <div className="flex items-center gap-2 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 p-2.5 rounded-xl">
+                <Loader2 className="w-4 h-4 animate-spin text-emerald-600 flex-shrink-0" />
+                <span>{progressMsg}</span>
+              </div>
+            )}
+            <button onClick={generate} disabled={busy} className="w-full py-2.5 rounded-xl bg-emerald-600 text-white font-bold disabled:opacity-50 flex items-center justify-center gap-2">
+              {busy ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Đang xử lý...</span>
+                </>
+              ) : (
+                'Tạo đề'
+              )}
             </button>
           </>
         )}

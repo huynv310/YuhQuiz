@@ -5,3 +5,5 @@ dist
 .DS_Store
 supabase/.temp
 supabase/.branches
+test-results/
+playwright-report/

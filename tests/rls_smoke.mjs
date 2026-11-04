@@ -267,5 +267,53 @@ check('rl: per-key row cap (spam ≤ 50)', await (async()=>{ const K3='c'.repeat
   await db.exec('reset role');
   check('account: teacher data + files purged', (await db.query(`select (select count(*)::int from question_bank where author_id='${T}') q,(select count(*)::int from exams where author_id='${T}') e,(select count(*)::int from storage.objects where name like '${T}/%') o`)).rows, v => v[0].q === 0 && v[0].e === 0 && v[0].o === 0);
 }
+// ---- 20261015: autogen exam, storage leak regex 24 hex, score precision ----
+{
+  const T2 = '99999999-9999-9999-9999-999999999999';
+  await db.exec(`insert into auth.users(id,email,raw_user_meta_data) values ('${T2}','t2@x.com','{"phone":"0909","role":"teacher","full_name":"GV2"}');`);
+
+  // 1. Storage release with 24-char hex hash (frontend slice(0,24))
+  const H24 = '1234567890abcdef12345678';
+  const p24 = `${T2}/${H24}.webp`;
+  await db.exec('reset role');
+  await db.exec(`insert into storage.objects(bucket_id,name,owner) values('question-images','${p24}','${T2}')`);
+  await db.exec(`insert into question_bank(author_id,chapter_name,difficulty,content_image_url,correct_key) values ('${T2}','Ch1',1,'${p24}','A')`);
+  check('release: 24-char hash question image registered', (await db.query(`select count(*)::int c from storage.objects where name='${p24}'`)).rows, v => v[0].c === 1);
+  await as(T2, 'authenticated', `delete from question_bank where content_image_url='${p24}'`);
+  check('release: 24-char hash question image removed on delete', (await db.query(`select count(*)::int c from storage.objects where name='${p24}'`)).rows, v => v[0].c === 0);
+
+  // 2. Exam with nullable pdf_url and question_images
+  const EX_BANK = '88888888-8888-8888-8888-888888888881';
+  check('exam: nullable pdf_url with question_images allowed',
+    await as(T2, 'authenticated', `insert into exams(id,title,grade,duration_minutes,pdf_url,config) values('${EX_BANK}','De Kho',12,45,null,'{"question_images":["https://cdn.example.com/q1.webp"]}') returning id`),
+    v => v.length === 1);
+
+  // 3. Atomic RPC create_exam_from_bank
+  const rpcRes = await as(T2, 'authenticated', `select public.create_exam_from_bank(
+    'De Thi Mau', 'Toán', 12, 50, null,
+    '{"question_images":["img1.webp","img2.webp"],"sections":[{"question_count":2,"total_score":10}]}',
+    '{"part_1_keys":{"1":"A","2":"B"}}',
+    '{"1":{"text":"Loi giai 1","files":[]}}'
+  ) res`);
+  check('rpc: create_exam_from_bank creates exam atomically', rpcRes, v => v?.[0]?.res?.id && v?.[0]?.res?.short_id);
+  const createdExamId = rpcRes?.[0]?.res?.id;
+  if (createdExamId) {
+    const keysRow = (await db.query(`select part_1_keys from exam_answer_keys where exam_id='${createdExamId}'`)).rows;
+    check('rpc: answer keys created with exam', keysRow, v => v[0]?.part_1_keys?.['1'] === 'A');
+  }
+
+  // 4. Student cannot call create_exam_from_bank
+  check('rpc: student calling create_exam_from_bank rejected',
+    await as(S, 'authenticated', `select public.create_exam_from_bank('Hack', 'Toán', 12, 50, null, '{}', '{}')`),
+    denied);
+
+  // 5. Submissions score >= 100 (NUMERIC(5,2))
+  await db.exec('reset role');
+  const TOK_100 = 'aaaaaaaa-1111-2222-3333-444444444444';
+  const subRes = (await db.query(`insert into submissions(exam_id,session_token,student_name,score_part_1,total_score,status)
+    values('${EX_BANK}','${TOK_100}','HS Gioi',100.00,100.00,'submitted') returning total_score`)).rows;
+  check('submissions: score 100.00 supported without overflow', subRes, v => Number(v[0]?.total_score) === 100);
+}
+
 if (fail) { console.error(`\n${fail} check(s) FAILED`); process.exit(1); }
 console.log('\ntest_rls: tất cả case đạt');

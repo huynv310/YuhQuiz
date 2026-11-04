@@ -27,7 +27,7 @@ test.describe('Cross-Device PDF Viewer & Anti-Download Verification', () => {
     expect(viewerPreference).toBe('canvas');
   });
 
-  test('Mobile Viewport Emulation (iPhone 13 - 390x844): No external popups or crashes', async ({ page }) => {
+  test('Mobile Viewport Emulation (iPhone 13 - 390x844): No external popups, full-width responsive layout', async ({ page }) => {
     let popupOpened = false;
     page.on('popup', () => {
       popupOpened = true;
@@ -43,6 +43,12 @@ test.describe('Cross-Device PDF Viewer & Anti-Download Verification', () => {
     // Kiểm tra thanh điều hướng mobile hiển thị chuẩn xác
     const body = page.locator('body');
     await expect(body).toBeVisible();
+
+    // Khẳng định: Không có thanh sidebar 80px lấn chiếm chiều rộng trên màn hình điện thoại
+    const desktopSidebar = page.locator('aside.hidden.md\\:flex');
+    if (await desktopSidebar.count() > 0) {
+      await expect(desktopSidebar).toBeHidden();
+    }
   });
 
   test('Tablet Viewport Emulation (iPad - 768x1024): Split container responsiveness', async ({ page }) => {

@@ -203,17 +203,17 @@ export const ExamList: React.FC<StudentPortalProps> = ({
     <div className="flex-1 bg-transparent text-slate-900 font-sans antialiased pb-12 flex flex-col min-h-screen">
 
       {/* 2. PROFILE HERO BANNER & THỐNG KÊ RIÊNG THEO LỚP */}
-      <div className="glass-panel border-b border-gray-100 py-6 px-4 md:px-8 sticky top-0 z-20">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="glass-panel border-b border-gray-100 py-4 sm:py-6 px-4 md:px-8 sticky top-0 z-20">
+        <div className="max-w-6xl mx-auto flex flex-col lg:flex-row lg:items-center justify-between gap-4 sm:gap-6">
           
           {/* User Info */}
-          <div className="flex items-center space-x-4">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-blue-400 text-white font-extrabold text-2xl flex items-center justify-center shadow-md">
+          <div className="flex items-center space-x-3 sm:space-x-4 min-w-0">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-blue-400 text-white font-extrabold text-xl sm:text-2xl flex items-center justify-center shadow-md shrink-0">
               {currentUser?.full_name ? currentUser.full_name.charAt(0).toUpperCase() : 'H'}
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <h2 className="font-extrabold text-2xl text-gray-900 leading-tight">
+                <h2 className="font-extrabold text-xl sm:text-2xl text-gray-900 leading-tight truncate">
                   {profile?.full_name || currentUser?.full_name || currentUser?.email?.split('@')[0] || 'Học sinh'}
                 </h2>
                 <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-bold border border-emerald-200">
@@ -221,7 +221,7 @@ export const ExamList: React.FC<StudentPortalProps> = ({
                 </span>
                 {rank && <RankBadge tier={rank.rank_tier} size={26} className="!gap-1 text-[11px]" />}
               </div>
-              <div className="flex items-center space-x-2 text-sm text-gray-500 mt-1">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs sm:text-sm text-gray-500 mt-1">
                 <span>{profile?.school || currentUser?.school || 'Trường THPT'}</span>
                 <span>•</span>
                 <span>Mã: <b className="font-mono text-gray-700">{profile?.user_code || '—'}</b></span>
@@ -236,15 +236,15 @@ export const ExamList: React.FC<StudentPortalProps> = ({
           </div>
 
           {/* Stats and Action */}
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-3">
-              <div className="bg-white/50 p-3 px-5 rounded-2xl border border-white/70 text-center">
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-4 w-full lg:w-auto">
+            <div className="grid grid-cols-2 gap-2 flex-1 sm:flex-none">
+              <div className="bg-white/60 p-2 sm:p-3 sm:px-5 rounded-2xl border border-white/70 text-center">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">
                   {selectedClassName ? `Điểm TB Lớp ${selectedClassName}` : 'Điểm TB Tích Lũy'}
                 </span>
                 <span className="text-xl font-extrabold text-emerald-600">{classAvgScore}</span>
               </div>
-              <div className="bg-white/50 p-3 px-5 rounded-2xl border border-white/70 text-center">
+              <div className="bg-white/60 p-2 sm:p-3 sm:px-5 rounded-2xl border border-white/70 text-center">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">
                   {selectedClassName ? `Đã làm ở ${selectedClassName}` : 'Tổng bài đã nộp'}
                 </span>
@@ -252,11 +252,11 @@ export const ExamList: React.FC<StudentPortalProps> = ({
               </div>
             </div>
 
-            <div className="h-10 w-px bg-slate-200 hidden md:block"></div>
+            <div className="h-10 w-px bg-slate-200 hidden lg:block"></div>
 
             <button
               onClick={() => setIsJoinClassOpen(true)}
-              className="flex items-center space-x-1.5 bg-blue-50 hover:bg-blue-100 text-primary-dark border border-blue-200 px-4 py-3 rounded-2xl font-bold text-sm transition-all shadow-sm"
+              className="flex items-center justify-center space-x-1.5 bg-blue-50 hover:bg-blue-100 text-primary-dark border border-blue-200 px-4 py-2.5 sm:py-3 rounded-2xl font-bold text-xs sm:text-sm transition-all shadow-sm w-full sm:w-auto shrink-0"
             >
               <Plus className="w-4 h-4" />
               <span>Vào lớp mới</span>
@@ -385,7 +385,7 @@ export const ExamList: React.FC<StudentPortalProps> = ({
                           <p className="text-xs text-gray-400">Giao bởi: <b className="text-gray-700">{ex.teacher_name || 'Giáo viên'}</b></p>
                         </div>
 
-                        <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
+                        <div className="pt-3 border-t border-gray-100 flex flex-wrap items-center justify-between gap-2">
                           <button
                             type="button"
                             onClick={() => setSelectedLeaderboardExam(ex)}
@@ -396,7 +396,7 @@ export const ExamList: React.FC<StudentPortalProps> = ({
                           </button>
 
                           {subRecord ? (
-                            <div className="flex items-center space-x-2">
+                            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                               <span className="text-xs font-extrabold text-primary bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200">
                                 Điểm: {subRecord.score}đ
                               </span>

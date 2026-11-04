@@ -61,15 +61,51 @@ export const StudentPortal: React.FC<StudentPortalProps> = (props) => {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden font-sans">
+    <div className="flex flex-col md:flex-row h-screen overflow-hidden font-sans">
       
-      {/* ── SIDEBAR ── */}
-      <aside className="glass-panel !rounded-none !border-y-0 !border-l-0 w-20 md:w-64 flex flex-col transition-all shrink-0 z-40">
+      {/* ── MOBILE HEADER (CHỐNG LẤN CHIẾM DIỆN TÍCH TRÊN MÀN HÌNH NHỎ) ── */}
+      <header className="md:hidden h-14 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 flex items-center justify-between z-30 shrink-0">
+        <div className="flex items-center space-x-2.5">
+          <LogoMark className="w-7 h-7" />
+          <div className="leading-tight">
+            <span className="font-heading font-extrabold text-base tracking-tight text-slate-800">
+              YuhQuiz
+            </span>
+            <span className="text-[10px] text-emerald-600 font-bold ml-1.5 bg-emerald-50 px-1.5 py-0.5 rounded-full border border-emerald-200">
+              Học sinh
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-1.5">
+          {props.onSwitchToTeacher && (
+            <button
+              onClick={props.onSwitchToTeacher}
+              className="p-1.5 rounded-lg text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
+              title="Đổi sang Giáo Viên"
+            >
+              <ShieldCheck className="w-5 h-5" />
+            </button>
+          )}
+          {props.onLogout && (
+            <button
+              onClick={props.onLogout}
+              className="p-1.5 rounded-lg text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition-colors"
+              title="Đăng xuất"
+            >
+              <LogOut className="w-5 h-5" />
+            </button>
+          )}
+        </div>
+      </header>
+
+      {/* ── DESKTOP SIDEBAR (CHỈ HIỂN THỊ TỪ MÀN HÌNH MD TRỞ LÊN) ── */}
+      <aside className="glass-panel !rounded-none !border-y-0 !border-l-0 hidden md:flex md:w-64 flex-col transition-all shrink-0 z-40">
         
         {/* LOGO */}
-        <div className="h-16 flex items-center justify-center md:justify-start md:px-6 border-b border-slate-100">
+        <div className="h-16 flex items-center justify-start px-6 border-b border-slate-100">
           <LogoMark className="w-8 h-8" />
-          <div className="hidden md:block ml-3 leading-tight">
+          <div className="ml-3 leading-tight">
             <span className="font-heading font-extrabold text-lg tracking-tight text-slate-800 block leading-tight">
               YuhQuiz
             </span>
@@ -88,7 +124,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = (props) => {
             }`}
           >
             <BookOpen className="w-5 h-5 flex-shrink-0" />
-            <span className="hidden md:block ml-3">Danh sách thi</span>
+            <span className="ml-3">Danh sách thi</span>
           </button>
 
           <button
@@ -100,7 +136,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = (props) => {
             }`}
           >
             <Dumbbell className="w-5 h-5 flex-shrink-0" />
-            <span className="hidden md:block ml-3">Luyện tập</span>
+            <span className="ml-3">Luyện tập</span>
           </button>
 
           <button
@@ -112,7 +148,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = (props) => {
             }`}
           >
             <Trophy className="w-5 h-5 flex-shrink-0" />
-            <span className="hidden md:block ml-3">Xếp Hạng</span>
+            <span className="ml-3">Xếp Hạng</span>
           </button>
 
           <button
@@ -124,7 +160,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = (props) => {
             }`}
           >
             <BookMarked className="w-5 h-5 flex-shrink-0" />
-            <span className="hidden md:block ml-3">Sổ tay SM-2</span>
+            <span className="ml-3">Sổ tay SM-2</span>
           </button>
 
           <button
@@ -136,8 +172,9 @@ export const StudentPortal: React.FC<StudentPortalProps> = (props) => {
             }`}
           >
             <Activity className="w-5 h-5 flex-shrink-0" />
-            <span className="hidden md:block ml-3">Phân tích Lỗ hổng</span>
+            <span className="ml-3">Phân tích Lỗ hổng</span>
           </button>
+
           <button
             onClick={() => setActiveTab('profile')}
             className={`w-full flex items-center p-2.5 rounded-xl transition-all ${
@@ -147,9 +184,8 @@ export const StudentPortal: React.FC<StudentPortalProps> = (props) => {
             }`}
           >
             <UserCircle className="w-5 h-5 flex-shrink-0" />
-            <span className="hidden md:block ml-3">Hồ sơ cá nhân</span>
+            <span className="ml-3">Hồ sơ cá nhân</span>
           </button>
-
         </nav>
 
         {/* FOOTER ACTIONS */}
@@ -161,7 +197,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = (props) => {
               title="Quản trị Giáo Viên"
             >
               <ShieldCheck className="w-5 h-5 flex-shrink-0 group-hover:text-emerald-700" />
-              <span className="hidden md:block ml-3">Đổi sang Giáo Viên</span>
+              <span className="ml-3">Đổi sang Giáo Viên</span>
             </button>
           )}
 
@@ -171,16 +207,69 @@ export const StudentPortal: React.FC<StudentPortalProps> = (props) => {
               className="w-full flex items-center p-3 rounded-xl text-slate-600 hover:bg-rose-50 hover:text-rose-600 transition-all font-medium group"
             >
               <LogOut className="w-5 h-5 flex-shrink-0 group-hover:text-rose-600" />
-              <span className="hidden md:block ml-3">Đăng xuất</span>
+              <span className="ml-3">Đăng xuất</span>
             </button>
           )}
         </div>
       </aside>
 
-      {/* ── MAIN CONTENT ── */}
-      <main className="flex-1 overflow-y-auto relative">
-         {renderContent()}
+      {/* ── MAIN CONTENT (TỰ DO 100% CHIỀU RỘNG TRÊN MOBILE, KHÔNG BỊ ÉP 80PX) ── */}
+      <main className="flex-1 overflow-y-auto relative pb-20 md:pb-0">
+        {renderContent()}
       </main>
+
+      {/* ── MOBILE BOTTOM NAVIGATION (CHUẨN UX THIẾT BỊ DI ĐỘNG) ── */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white/95 backdrop-blur-md border-t border-slate-200 z-50 flex items-center justify-around px-1 shadow-lg">
+        <button
+          onClick={() => setActiveTab('exams')}
+          className={`flex flex-col items-center justify-center flex-1 py-1 transition-all ${
+            activeTab === 'exams' ? 'text-emerald-600 font-bold' : 'text-slate-500 font-medium'
+          }`}
+        >
+          <BookOpen className="w-5 h-5" />
+          <span className="text-[10px] mt-0.5">Đề thi</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('practice')}
+          className={`flex flex-col items-center justify-center flex-1 py-1 transition-all ${
+            activeTab === 'practice' ? 'text-emerald-600 font-bold' : 'text-slate-500 font-medium'
+          }`}
+        >
+          <Dumbbell className="w-5 h-5" />
+          <span className="text-[10px] mt-0.5">Luyện tập</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('leaderboard')}
+          className={`flex flex-col items-center justify-center flex-1 py-1 transition-all ${
+            activeTab === 'leaderboard' ? 'text-emerald-600 font-bold' : 'text-slate-500 font-medium'
+          }`}
+        >
+          <Trophy className="w-5 h-5" />
+          <span className="text-[10px] mt-0.5">Xếp hạng</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('notebook')}
+          className={`flex flex-col items-center justify-center flex-1 py-1 transition-all ${
+            activeTab === 'notebook' ? 'text-emerald-600 font-bold' : 'text-slate-500 font-medium'
+          }`}
+        >
+          <BookMarked className="w-5 h-5" />
+          <span className="text-[10px] mt-0.5">Sổ tay</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('profile')}
+          className={`flex flex-col items-center justify-center flex-1 py-1 transition-all ${
+            activeTab === 'profile' ? 'text-emerald-600 font-bold' : 'text-slate-500 font-medium'
+          }`}
+        >
+          <UserCircle className="w-5 h-5" />
+          <span className="text-[10px] mt-0.5">Cá nhân</span>
+        </button>
+      </nav>
 
     </div>
   );

@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { RefreshCw, AlertCircle, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
-import { stampWatermarkOnCanvas, buildAdversarialWatermarkText } from '../utils/watermark';
+import { RefreshCw, AlertCircle } from 'lucide-react';
 
 interface PdfCanvasViewerProps {
   url: string;
@@ -24,9 +23,6 @@ export const PdfCanvasViewer: React.FC<PdfCanvasViewerProps> = ({
   url,
   zoom = 1.0,
   onZoomChange,
-  userCode,
-  studentName,
-  examId,
   onLoadSuccess,
   onPageVisible,
   className = '',
@@ -38,17 +34,45 @@ export const PdfCanvasViewer: React.FC<PdfCanvasViewerProps> = ({
   const [progress, setProgress] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
 
-  // Pinch-to-zoom touch gesture state
+  // Responsive Container Width Tracking (Fit-to-Width Adaptation)
+  const [containerWidth, setContainerWidth] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth < 768 ? window.innerWidth : 800;
+    }
+    return 800;
+  });
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const updateWidth = () => {
+      if (el.clientWidth > 0) {
+        setContainerWidth(el.clientWidth);
+      }
+    };
+
+    updateWidth();
+
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect?.width;
+      if (w && w > 0) {
+        setContainerWidth(Math.floor(w));
+      }
+    });
+
+    ro.observe(el);
+    window.addEventListener('resize', updateWidth);
+
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', updateWidth);
+    };
+  }, []);
+
+  // Pinch-to-zoom touch gesture state (50% to 150%)
   const touchStartDistRef = useRef<number | null>(null);
   const touchStartZoomRef = useRef<number>(zoom);
-
-  const watermarkText = React.useMemo(() => {
-    return buildAdversarialWatermarkText({
-      userCode,
-      studentName,
-      examId,
-    });
-  }, [userCode, studentName, examId]);
 
   // Load PDF document using pdfjs-dist on demand
   useEffect(() => {
@@ -157,7 +181,7 @@ export const PdfCanvasViewer: React.FC<PdfCanvasViewerProps> = ({
     };
   }, [url, onLoadSuccess]);
 
-  // Handle pinch-to-zoom for touch devices
+  // Handle pinch-to-zoom for touch devices: bounded within 50% - 150% (0.5 - 1.5)
   const handleTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length === 2) {
       const dist = Math.hypot(
@@ -176,7 +200,7 @@ export const PdfCanvasViewer: React.FC<PdfCanvasViewerProps> = ({
         e.touches[0].clientY - e.touches[1].clientY
       );
       const ratio = dist / touchStartDistRef.current;
-      const targetZoom = Math.min(2.5, Math.max(0.7, parseFloat((touchStartZoomRef.current * ratio).toFixed(2))));
+      const targetZoom = Math.min(1.5, Math.max(0.5, parseFloat((touchStartZoomRef.current * ratio).toFixed(2))));
       onZoomChange(targetZoom);
     }
   };
@@ -215,25 +239,49 @@ export const PdfCanvasViewer: React.FC<PdfCanvasViewerProps> = ({
     );
   }
 
+  // Padding dynamically matches device screen width
+  const padding = containerWidth < 640 ? 12 : 24;
+  const availableWidth = Math.max(260, containerWidth - padding);
+
   return (
     <div
       ref={containerRef}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      className={`flex-1 overflow-y-auto overflow-x-auto bg-[#525659] p-2 sm:p-4 flex flex-col items-center select-none touch-pan-x touch-pan-y ${className}`}
+      className={`flex-1 overflow-y-auto overflow-x-auto bg-[#525659] p-2 sm:p-4 select-none touch-pan-x touch-pan-y ${className}`}
     >
-      <div className="w-full flex flex-col items-center space-y-4 pb-12">
-        {pages.map((p) => (
-          <PdfPageCanvas
-            key={p.pageNumber}
-            doc={pdfDocRef.current}
-            meta={p}
-            zoom={zoom}
-            watermarkText={watermarkText}
-            onVisible={() => onPageVisible?.(p.pageNumber)}
-          />
-        ))}
+      {/* 
+        QUAN TRỌNG: KHÔNG DÙNG items-center TRÊN CONTAINER CUỘN NGOÀI CÙNG!
+        Dùng 'min-w-full w-max flex flex-col items-center mx-auto' để:
+        - Khi trang nhỏ hơn màn hình: Được canh giữa trang trọng.
+        - Khi trang phóng to > 100%: Lề trái bám sát x=0, học sinh cuộn ngang từ mép trái mượt mà,
+          triệt tiêu 100% lỗi âm toạ độ cuộn làm cụt mất chữ "TRƯỜNG THCS-THPT..." ở lề trái!
+      */}
+      <div className="min-w-full w-max flex flex-col items-center space-y-4 pb-12 mx-auto">
+        {pages.map((p) => {
+          // Tính toán Fit-to-Width cơ sở theo tỉ lệ màn hình
+          const isMobile = containerWidth < 768;
+          const baseFitScale = isMobile
+            ? availableWidth / p.width
+            : Math.min(availableWidth / p.width, 1.35);
+
+          const effectiveScale = baseFitScale * zoom;
+          const displayWidth = Math.round(p.width * effectiveScale);
+          const displayHeight = Math.round(p.height * effectiveScale);
+
+          return (
+            <PdfPageCanvas
+              key={p.pageNumber}
+              doc={pdfDocRef.current}
+              meta={p}
+              effectiveScale={effectiveScale}
+              displayWidth={displayWidth}
+              displayHeight={displayHeight}
+              onVisible={() => onPageVisible?.(p.pageNumber)}
+            />
+          );
+        })}
       </div>
     </div>
   );
@@ -242,16 +290,18 @@ export const PdfCanvasViewer: React.FC<PdfCanvasViewerProps> = ({
 interface PdfPageCanvasProps {
   doc: any;
   meta: PageMeta;
-  zoom: number;
-  watermarkText: string;
+  effectiveScale: number;
+  displayWidth: number;
+  displayHeight: number;
   onVisible?: () => void;
 }
 
 const PdfPageCanvas: React.FC<PdfPageCanvasProps> = ({
   doc,
   meta,
-  zoom,
-  watermarkText,
+  effectiveScale,
+  displayWidth,
+  displayHeight,
   onVisible,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -260,7 +310,7 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = ({
   const [isVisible, setIsVisible] = useState<boolean>(false);
   const [rendered, setRendered] = useState<boolean>(false);
 
-  // Virtualization: IntersectionObserver to render only visible pages (+200px threshold)
+  // Virtualization: IntersectionObserver to render only visible pages (+300px threshold)
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -288,7 +338,7 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = ({
     return () => observer.disconnect();
   }, [onVisible]);
 
-  // Render canvas when page becomes visible or zoom changes
+  // Render canvas when page becomes visible or scale changes
   useEffect(() => {
     if (!isVisible || !doc || !canvasRef.current) return;
     let isCancelled = false;
@@ -304,8 +354,7 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = ({
         if (isCancelled || !canvasRef.current) return;
 
         const dpr = Math.min(window.devicePixelRatio || 1, 2.5); // Retina HiDPI scale
-        const baseViewport = page.getViewport({ scale: zoom });
-        const scaledViewport = page.getViewport({ scale: zoom * dpr });
+        const scaledViewport = page.getViewport({ scale: effectiveScale * dpr });
 
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d', { alpha: false });
@@ -313,8 +362,8 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = ({
 
         canvas.width = Math.floor(scaledViewport.width);
         canvas.height = Math.floor(scaledViewport.height);
-        canvas.style.width = `${Math.floor(baseViewport.width)}px`;
-        canvas.style.height = `${Math.floor(baseViewport.height)}px`;
+        canvas.style.width = `${displayWidth}px`;
+        canvas.style.height = `${displayHeight}px`;
 
         const renderContext = {
           canvasContext: ctx,
@@ -326,13 +375,6 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = ({
         await renderTask.promise;
 
         if (isCancelled) return;
-
-        // Stamp adversarial AI-refusal watermark directly onto the canvas pixels
-        stampWatermarkOnCanvas(ctx, canvas.width, canvas.height, watermarkText, {
-          fontSize: Math.max(14, Math.round(canvas.width / 45)),
-          opacity: 0.045, // Subtle for students, clear for OCR
-        });
-
         setRendered(true);
       } catch (err: any) {
         // Silently ignore cancellation errors from re-zooming
@@ -351,20 +393,15 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = ({
         renderTaskRef.current = null;
       }
     };
-  }, [isVisible, doc, meta.pageNumber, zoom, watermarkText]);
-
-  // Compute layout dimensions for smooth placeholder
-  const displayWidth = Math.round(meta.width * zoom);
-  const displayHeight = Math.round(meta.height * zoom);
+  }, [isVisible, doc, meta.pageNumber, effectiveScale, displayWidth, displayHeight]);
 
   return (
     <div
       ref={containerRef}
-      className="relative bg-white rounded-lg shadow-md transition-shadow overflow-hidden flex items-center justify-center"
+      className="relative bg-white rounded-lg shadow-md transition-shadow overflow-hidden flex items-center justify-center mx-auto"
       style={{
         width: `${displayWidth}px`,
         minHeight: `${displayHeight}px`,
-        maxWidth: '100%',
       }}
     >
       {/* Page number badge */}
@@ -373,7 +410,11 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = ({
       </div>
 
       {isVisible ? (
-        <canvas ref={canvasRef} className="block w-full h-auto mx-auto" />
+        <canvas
+          ref={canvasRef}
+          className="block mx-auto"
+          style={{ width: `${displayWidth}px`, height: `${displayHeight}px` }}
+        />
       ) : (
         <div
           className="w-full flex items-center justify-center bg-gray-100 text-gray-400 text-xs font-medium"

@@ -666,12 +666,12 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
               </span>
             </span>
 
-            {/* BỘ NÚT THU PHÓNG FILE PDF ĐỘC LẬP (70% - 250%) */}
+            {/* BỘ NÚT THU PHÓNG FILE PDF ĐỘC LẬP (50% - 150%) */}
             <div className="flex items-center space-x-1 bg-white px-2 py-0.5 rounded-lg border border-gray-200 shadow-2xs">
               <button
                 type="button"
-                onClick={() => setPdfZoom(prev => Math.max(0.7, parseFloat((prev - 0.15).toFixed(2))))}
-                disabled={pdfZoom <= 0.7}
+                onClick={() => setPdfZoom(prev => Math.max(0.5, parseFloat((prev - 0.1).toFixed(2))))}
+                disabled={pdfZoom <= 0.5}
                 className="w-5 h-5 rounded hover:bg-gray-100 flex items-center justify-center font-bold text-gray-700 disabled:opacity-30"
                 title="Thu nhỏ đề thi"
               >
@@ -687,8 +687,8 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
               </button>
               <button
                 type="button"
-                onClick={() => setPdfZoom(prev => Math.min(2.5, parseFloat((prev + 0.15).toFixed(2))))}
-                disabled={pdfZoom >= 2.5}
+                onClick={() => setPdfZoom(prev => Math.min(1.5, parseFloat((prev + 0.1).toFixed(2))))}
+                disabled={pdfZoom >= 1.5}
                 className="w-5 h-5 rounded hover:bg-gray-100 flex items-center justify-center font-bold text-gray-700 disabled:opacity-30"
                 title="Phóng to đề thi"
               >

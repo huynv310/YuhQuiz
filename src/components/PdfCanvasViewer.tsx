@@ -65,10 +65,22 @@ export const PdfCanvasViewer: React.FC<PdfCanvasViewerProps> = ({
         const worker: any = await import('pdfjs-dist/build/pdf.worker.min.mjs?url');
         pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
 
-        // Fetch with progress tracking
-        const res = await fetch(url);
-        if (!res.ok) {
-          throw new Error(`Không tải được tệp PDF (HTTP ${res.status})`);
+        // Thử tải qua URL chính, nếu gặp lỗi mạng/CORS/404 tự động fallback sang URL Supabase trực tiếp
+        let res: Response;
+        try {
+          res = await fetch(url);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        } catch (fetchErr) {
+          const directSupabaseUrl = url.includes('workers.dev')
+            ? url.replace(/https:\/\/[a-z0-9-]+\.workers\.dev\/([^/?#]+)/i, 'https://lnqckqgotffitlinxgfr.supabase.co/storage/v1/object/public/exam-pdfs/exams/$1')
+            : null;
+          if (directSupabaseUrl && directSupabaseUrl !== url) {
+            console.warn('Không tải được qua CDN, tự động chuyển sang tải trực tiếp từ Supabase Storage:', fetchErr);
+            res = await fetch(directSupabaseUrl);
+            if (!res.ok) throw new Error(`Không tải được tệp PDF (HTTP ${res.status})`);
+          } else {
+            throw fetchErr;
+          }
         }
 
         const contentLength = res.headers.get('content-length');
@@ -107,8 +119,6 @@ export const PdfCanvasViewer: React.FC<PdfCanvasViewerProps> = ({
 
         const loadingTask = pdfjs.getDocument({
           data: allBytes,
-          cMapUrl: 'https://unpkg.com/pdfjs-dist@4.10.38/cmaps/',
-          cMapPacked: true,
         });
 
         const doc = await loadingTask.promise;

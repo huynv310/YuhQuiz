@@ -15,6 +15,7 @@ import { Exam } from '../types/exam';
 import { saveRescue, removeRescue, downloadRescue } from '../lib/rescue';
 import { toCachedPdfUrl } from '../lib/pdfUrl';
 import { SolutionView, hasSolution } from './SolutionView';
+import { PdfCanvasViewer } from './PdfCanvasViewer';
 
 interface StudentExamRoomProps {
   examId: string;
@@ -39,11 +40,7 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
   const [splitRatio, setSplitRatio] = useState<number>(55);
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [isPdfFullscreen, setIsPdfFullscreen] = useState<boolean>(false);
-  // Google Viewer mất vài giây tải, hiện overlay để học sinh đỡ tưởng bị treo
-  const [isPdfFrameLoading, setIsPdfFrameLoading] = useState<boolean>(true);
-  const [isPdfFrameStuck, setIsPdfFrameStuck] = useState<boolean>(false);
-  const [pdfFrameKey, setPdfFrameKey] = useState<number>(0);
-  const pdfFrameLoadedRef = useRef<boolean>(false);
+
 
   // 2. Thu phóng file PDF độc lập (70% - 200%)
   const [pdfZoom, setPdfZoom] = useState<number>(1.0);
@@ -79,12 +76,12 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
   const [isMobileGridOpen, setIsMobileGridOpen] = useState<boolean>(false);
   const [activeMobileQuestion, setActiveMobileQuestion] = useState<number>(1);
   const [activePart2Sub, setActivePart2Sub] = useState<'a' | 'b' | 'c' | 'd'>('a');
-  const [useGoogleViewer, setUseGoogleViewerState] = useState<boolean>(() => {
-    try { return localStorage.getItem('yq_pdf_viewer') !== 'native'; } catch { return true; }  // mặc định Google Viewer
+    const [viewerMode, setViewerModeState] = useState<'canvas' | 'native'>(() => {
+    try { return localStorage.getItem('yq_pdf_viewer') === 'native' ? 'native' : 'canvas'; } catch { return 'canvas'; }
   });
-  const setUseGoogleViewer = (v: boolean) => {
-    setUseGoogleViewerState(v);
-    try { localStorage.setItem('yq_pdf_viewer', v ? 'google' : 'native'); } catch { /* ignore */ }
+  const setViewerMode = (v: 'canvas' | 'native') => {
+    setViewerModeState(v);
+    try { localStorage.setItem('yq_pdf_viewer', v); } catch { /* ignore */ }
   };
 
   // Khởi tạo token phiên thi an toàn tuyệt đối
@@ -473,32 +470,6 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  useEffect(() => {
-    setIsPdfFrameLoading(true);
-    setIsPdfFrameStuck(false);
-    pdfFrameLoadedRef.current = false;
-    if (!exam?.pdf_url || !useGoogleViewer) return;
-    // Google Viewer thỉnh thoảng trả 204 (trang rỗng) → iframe không bao giờ onLoad, kẹt mãi ở "Đang tải".
-    // Tự tải lại khung với khoảng chờ tăng dần (10s, 15s, 20s… để mạng chậm vẫn kịp tải xong),
-    // quá 60 giây vẫn chưa được thì gợi ý chuyển sang trình đọc gốc.
-    let gap = 10_000;
-    let retryTimer: ReturnType<typeof setTimeout>;
-    const retry = () => {
-      if (pdfFrameLoadedRef.current) return;
-      setPdfFrameKey(k => k + 1);
-      gap = Math.min(gap + 5_000, 30_000);
-      retryTimer = setTimeout(retry, gap);
-    };
-    retryTimer = setTimeout(retry, gap);
-    const stuckTimer = setTimeout(() => {
-      if (!pdfFrameLoadedRef.current) setIsPdfFrameStuck(true);
-    }, 60_000);
-    return () => {
-      clearTimeout(retryTimer);
-      clearTimeout(stuckTimer);
-    };
-  }, [exam?.pdf_url, useGoogleViewer]);
-
   if (!exam) {
     return (
       <div className="h-screen w-screen flex flex-col items-center justify-center bg-[#FAFAFA] space-y-3 font-sans">
@@ -535,17 +506,6 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
   };
 
   const currentQMeta = getQuestionMeta(activeMobileQuestion);
-
-  const getPdfEmbedUrl = () => {
-    if (!exam?.pdf_url) return '';
-    const pdfUrl = toCachedPdfUrl(exam.pdf_url);
-    // Thêm #view=FitH để đảm bảo các trình duyệt không bắt tải về mà sẽ render PDF
-    if (useGoogleViewer) {
-      return `https://docs.google.com/viewer?url=${encodeURIComponent(pdfUrl)}&embedded=true`;
-    }
-    // Dùng object / iframe trực tiếp với param chuẩn
-    return `${pdfUrl}#view=FitH&zoom=${Math.round(pdfZoom * 100)}&toolbar=0&navpanes=0`;
-  };
 
   return (
     <div className="flex flex-col h-screen w-screen bg-[#FAFAFA] text-[#121212] font-sans antialiased select-none overflow-hidden relative">
@@ -701,10 +661,12 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
           <div className="h-8 md:h-9 bg-gray-100 border-b border-gray-200 px-2 md:px-3 flex items-center justify-between text-[11px] text-gray-600 z-10 flex-shrink-0">
             <span className="flex items-center space-x-1 font-semibold">
               <FileText className="w-3.5 h-3.5 text-gray-500" />
-              <span className="hidden sm:inline">{useGoogleViewer ? 'Đề thi · Google Viewer' : 'Đề thi · Trình đọc gốc'}</span>
+              <span className="hidden sm:inline">
+                {viewerMode === 'canvas' ? 'Đề thi · Trình đọc Canvas' : 'Đề thi · Trình đọc gốc'}
+              </span>
             </span>
 
-            {/* BỘ NÚT THU PHÓNG FILE PDF ĐỘC LẬP (70% - 200%) */}
+            {/* BỘ NÚT THU PHÓNG FILE PDF ĐỘC LẬP (70% - 250%) */}
             <div className="flex items-center space-x-1 bg-white px-2 py-0.5 rounded-lg border border-gray-200 shadow-2xs">
               <button
                 type="button"
@@ -725,8 +687,8 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
               </button>
               <button
                 type="button"
-                onClick={() => setPdfZoom(prev => Math.min(2.0, parseFloat((prev + 0.15).toFixed(2))))}
-                disabled={pdfZoom >= 2.0}
+                onClick={() => setPdfZoom(prev => Math.min(2.5, parseFloat((prev + 0.15).toFixed(2))))}
+                disabled={pdfZoom >= 2.5}
                 className="w-5 h-5 rounded hover:bg-gray-100 flex items-center justify-center font-bold text-gray-700 disabled:opacity-30"
                 title="Phóng to đề thi"
               >
@@ -743,15 +705,17 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
             </div>
 
             <button
-              onClick={() => setUseGoogleViewer(!useGoogleViewer)}
+              onClick={() => setViewerMode(viewerMode === 'canvas' ? 'native' : 'canvas')}
               className="text-primary hover:underline font-semibold flex items-center space-x-1"
             >
               <RefreshCw className="w-3 h-3" />
-              <span className="hidden md:inline">{useGoogleViewer ? 'Chuyển sang trình đọc gốc' : 'Chuyển sang Google Viewer'}</span>
+              <span className="hidden md:inline">
+                {viewerMode === 'canvas' ? 'Dùng trình đọc gốc' : 'Dùng trình đọc Canvas'}
+              </span>
             </button>
           </div>
 
-          {/* VÙNG CHỨA IFRAME PDF ÁP DỤNG THU PHÓNG THỰC TẾ (CSS TRANSFORM SCALE) */}
+          {/* VÙNG CHỨA ĐỀ THI: QUESTION IMAGES HOẶC PDF (CANVAS NỘI BỘ HOẶC OBJECT GỐC) */}
           {exam?.config?.question_images?.length ? (
             <div className={`w-full flex-1 overflow-auto bg-[#525659] p-2 space-y-2 ${isDragging ? 'pointer-events-none select-none' : ''}`}>
               {exam.config.question_images.map((url: string, i: number) => (
@@ -762,57 +726,20 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
               ))}
             </div>
           ) : exam?.pdf_url ? (
-            <div className={`w-full flex-1 relative overflow-auto bg-[#525659] ${isDragging ? 'pointer-events-none select-none' : ''}`}>
-              <div 
-                style={{
-                  width: `${Math.round(100 * pdfZoom)}%`,
-                  height: `${Math.round(100 * pdfZoom)}%`,
-                  minWidth: '100%',
-                  minHeight: '100%',
-                  position: 'relative',
-                }}
-              >
-                {useGoogleViewer ? (
-                  <>
-                    {isPdfFrameLoading && (
-                      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-white space-y-2 bg-[#525659] px-4 text-center">
-                        <RefreshCw className="w-6 h-6 animate-spin" />
-                        <p className="text-sm">{isPdfFrameStuck ? 'Đề thi tải lâu hơn bình thường.' : 'Đang tải đề thi qua Google Viewer...'}</p>
-                        {isPdfFrameStuck && (
-                          <button
-                            onClick={() => setUseGoogleViewer(false)}
-                            className="mt-1 px-4 py-2 bg-primary rounded-full text-white text-sm font-bold"
-                          >
-                            Xem bằng trình đọc gốc
-                          </button>
-                        )}
-                      </div>
-                    )}
-                    <iframe
-                      key={pdfFrameKey}
-                      src={getPdfEmbedUrl()}
-                      title="Đề thi PDF"
-                      onLoad={() => {
-                        pdfFrameLoadedRef.current = true;
-                        setIsPdfFrameLoading(false);
-                        setIsPdfFrameStuck(false);
-                      }}
-                      style={{
-                        width: `${(100 / pdfZoom).toFixed(2)}%`,
-                        height: `${(100 / pdfZoom).toFixed(2)}%`,
-                        transform: `scale(${pdfZoom})`,
-                        transformOrigin: 'top left',
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        border: 'none',
-                      }}
-                      allow="autoplay"
-                    />
-                  </>
-                ) : (
+            <div className={`w-full flex-1 relative overflow-hidden bg-[#525659] flex flex-col ${isDragging ? 'pointer-events-none select-none' : ''}`}>
+              {viewerMode === 'canvas' ? (
+                <PdfCanvasViewer
+                  url={toCachedPdfUrl(exam.pdf_url)}
+                  zoom={pdfZoom}
+                  onZoomChange={setPdfZoom}
+                  userCode={currentUser?.user_code || currentUser?.profile?.user_code}
+                  studentName={studentName}
+                  examId={examId}
+                />
+              ) : (
+                <div className="w-full flex-1 relative overflow-auto">
                   <object
-                    data={getPdfEmbedUrl()}
+                    data={`${toCachedPdfUrl(exam.pdf_url)}#view=FitH&zoom=${Math.round(pdfZoom * 100)}&toolbar=0&navpanes=0`}
                     type="application/pdf"
                     style={{
                       width: `${(100 / pdfZoom).toFixed(2)}%`,
@@ -825,13 +752,15 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
                       border: 'none',
                     }}
                   >
-                    <div className="flex flex-col items-center justify-center h-full text-white space-y-3">
-                      <p>Trình duyệt của bạn không hỗ trợ đọc PDF trực tiếp.</p>
-                      <button onClick={() => setUseGoogleViewer(true)} className="px-4 py-2 bg-primary rounded-full text-white font-bold">Dùng Google Viewer</button>
+                    <div className="flex flex-col items-center justify-center h-full text-white space-y-3 p-6 text-center">
+                      <p>Trình duyệt của bạn không hỗ trợ đọc PDF trực tiếp qua plugin hệ thống.</p>
+                      <button onClick={() => setViewerMode('canvas')} className="px-4 py-2 bg-primary rounded-full text-white font-bold">
+                        Chuyển sang trình đọc Canvas nội bộ
+                      </button>
                     </div>
                   </object>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-gray-400 space-y-2">

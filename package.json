@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test": "node tests/test_scoring.js && node tests/test_dynamic_scoring.js && node tests/test_answer_parser.js && node tests/test_autogen.mjs && node tests/test_matrix_boundary.mjs && node tests/test_bff.mjs",
+    "test": "node tests/test_scoring.js && node tests/test_dynamic_scoring.js && node tests/test_answer_parser.js && node tests/test_autogen.mjs && node tests/test_matrix_boundary.mjs && node tests/test_watermark.mjs && node tests/test_bff.mjs",
     "test:db": "node tests/rls_smoke.mjs && node tests/legacy_migration.mjs",
     "test:e2e": "playwright test",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.api.json",

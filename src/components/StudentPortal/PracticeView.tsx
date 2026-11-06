@@ -5,6 +5,7 @@ import { getQuestionImageUrl } from '../../lib/imageUpload';
 import { SUBJECT_PRESETS, GRADES } from '../../constants/subjectPresets';
 import { DIFFICULTY_LABELS } from '../../constants/chapters';
 import { parsePart2Key, normalizePart3Key } from '../../utils/autoGen';
+import { sanitizeShortAnswerInput } from '../../utils/scoring';
 import { SolutionView } from '../SolutionView';
 import { useReveal } from '../../lib/motion';
 
@@ -22,6 +23,21 @@ const isCorrect = (q: PQuestion, key: PKey, a: Ans | undefined): boolean => {
   }
   const x = normalizePart3Key(String(a)), y = normalizePart3Key(key.correct_key);
   return x === y || (x !== '' && !isNaN(Number(x)) && Number(x) === Number(y));
+};
+
+const getPart2CorrectCount = (keyStr: string, a: Ans | undefined): number => {
+  if (!a || typeof a !== 'object') return 0;
+  const k = parsePart2Key(keyStr);
+  const m = a as Record<string, boolean>;
+  return ['a', 'b', 'c', 'd'].filter(s => m[s] !== undefined && m[s] === k[s]).length;
+};
+
+const computePart2SubScore = (cnt: number): number => {
+  if (cnt === 4) return 1.0;
+  if (cnt === 3) return 0.5;
+  if (cnt === 2) return 0.25;
+  if (cnt === 1) return 0.1;
+  return 0;
 };
 
 export const PracticeView: React.FC = () => {
@@ -120,6 +136,7 @@ export const PracticeView: React.FC = () => {
               const k = keys?.[q.id];
               const ok = k ? isCorrect(q, k, answers[q.id]) : null;
               const a = answers[q.id];
+              const p2SubCount = k && q.part === 2 ? getPart2CorrectCount(k.correct_key, a) : 0;
               return (
                 <li key={q.id} className="card p-4 space-y-3">
                   <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -127,8 +144,23 @@ export const PracticeView: React.FC = () => {
                     <span className="chip chip-muted">{q.subject} · Khối {q.grade}</span>
                     <span className="chip chip-muted">{DIFFICULTY_LABELS[q.difficulty] || `Mức ${q.difficulty}`}</span>
                     {(q.topic_tags || []).map(t => <span key={t} className="chip chip-primary">#{t}</span>)}
-                    {ok === true && <span className="ml-auto inline-flex items-center gap-1 text-emerald-600 font-bold"><CheckCircle2 className="w-4 h-4" /> Đúng</span>}
-                    {ok === false && <span className="ml-auto inline-flex items-center gap-1 text-rose-500 font-bold"><XCircle className="w-4 h-4" /> Sai</span>}
+                    {k && (
+                      q.part === 2 ? (
+                        p2SubCount === 4 ? (
+                          <span className="ml-auto inline-flex items-center gap-1 text-emerald-600 font-bold"><CheckCircle2 className="w-4 h-4" /> Đúng 4/4 ý (+1.0đ)</span>
+                        ) : p2SubCount > 0 ? (
+                          <span className="ml-auto inline-flex items-center gap-1 text-amber-600 font-bold"><CheckCircle2 className="w-4 h-4" /> Đúng {p2SubCount}/4 ý (+{computePart2SubScore(p2SubCount)}đ)</span>
+                        ) : (
+                          <span className="ml-auto inline-flex items-center gap-1 text-rose-500 font-bold"><XCircle className="w-4 h-4" /> Sai 0/4 ý (0đ)</span>
+                        )
+                      ) : (
+                        ok === true ? (
+                          <span className="ml-auto inline-flex items-center gap-1 text-emerald-600 font-bold"><CheckCircle2 className="w-4 h-4" /> Đúng</span>
+                        ) : (
+                          <span className="ml-auto inline-flex items-center gap-1 text-rose-500 font-bold"><XCircle className="w-4 h-4" /> Sai</span>
+                        )
+                      )
+                    )}
                   </div>
                   <img src={getQuestionImageUrl(q.content_image_url)} alt={`Đề câu ${i + 1}`} loading="lazy" className="w-full rounded-xl border bg-white" />
 
@@ -164,10 +196,19 @@ export const PracticeView: React.FC = () => {
                   )}
 
                   {q.part === 3 && (
-                    <div className="flex items-center gap-2">
-                      <input className="field max-w-[220px] font-mono text-center" disabled={!!k} placeholder="Điền đáp số…"
-                             value={(a as string) || ''} onChange={e => setAns(q.id, e.target.value)} />
-                      {k && <span className="chip chip-muted font-mono">ĐS: {k.correct_key}</span>}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                      <div className="flex items-center gap-2">
+                        <input
+                          className="field max-w-[180px] font-mono text-center tracking-wider text-base font-bold"
+                          disabled={!!k}
+                          maxLength={4}
+                          placeholder="Tối đa 4 ký tự"
+                          value={(a as string) || ''}
+                          onChange={e => setAns(q.id, sanitizeShortAnswerInput(e.target.value))}
+                        />
+                        {k && <span className="chip chip-muted font-mono font-bold">ĐS: {k.correct_key}</span>}
+                      </div>
+                      <span className="text-[10px] text-slate-400">Chuẩn phiếu tô THPTQG 2025 (tối đa 4 ký tự)</span>
                     </div>
                   )}
 

@@ -8,16 +8,23 @@ interface ItemAnalysisTableProps {
 }
 
 export const ItemAnalysisTable: React.FC<ItemAnalysisTableProps> = ({ exam, submissions }) => {
-  const totalSubs = submissions.filter(s => s.status === 'submitted').length;
+  const submittedSubs = submissions.filter(s => s.status === 'submitted');
+  const totalSubs = submittedSubs.length;
 
   if (totalSubs === 0) {
     return null;
   }
 
-  // Thuật toán phân tích tỷ lệ làm đúng P_i
-  const p1Stats: { q: number; correct: number; rate: number }[] = [];
+  // Phân nhóm 27% điểm cao nhất (Upper) và 27% điểm thấp nhất (Lower) theo Lý thuyết Khảo thí Cổ điển (CTT) để tính D_i
+  const sortedByScore = [...submittedSubs].sort((a, b) => (b.score || 0) - (a.score || 0));
+  const groupSize = Math.max(1, Math.round(totalSubs * 0.27));
+  const upperGroup = sortedByScore.slice(0, groupSize);
+  const lowerGroup = sortedByScore.slice(totalSubs - groupSize);
+
+  // Thuật toán phân tích tỷ lệ làm đúng P_i & Độ phân biệt D_i
+  const p1Stats: { q: number; correct: number; rate: number; di: number }[] = [];
   const p2Stats: { q: number; avgCorrectItems: number; fullRate: number }[] = [];
-  const p3Stats: { q: number; correct: number; rate: number }[] = [];
+  const p3Stats: { q: number; correct: number; rate: number; di: number }[] = [];
 
   const p1Count = exam.config?.sections?.find(s => s.id === 'part_1')?.question_count ?? 0;
   const p2Count = exam.config?.sections?.find(s => s.id === 'part_2')?.question_count ?? 0;
@@ -26,19 +33,26 @@ export const ItemAnalysisTable: React.FC<ItemAnalysisTableProps> = ({ exam, subm
   // 1. Phân tích Phần I
   for (let q = 1; q <= p1Count; q++) {
     let correct = 0;
-    submissions.forEach(sub => {
+    submittedSubs.forEach(sub => {
       if (sub.score_details?.part_1?.[q]?.is_correct) {
         correct++;
       }
     });
-    p1Stats.push({ q, correct, rate: Math.round((correct / totalSubs) * 100) });
+    const upperCorrect = upperGroup.filter(s => s.score_details?.part_1?.[q]?.is_correct).length / groupSize;
+    const lowerCorrect = lowerGroup.filter(s => s.score_details?.part_1?.[q]?.is_correct).length / groupSize;
+    p1Stats.push({
+      q,
+      correct,
+      rate: Math.round((correct / totalSubs) * 100),
+      di: parseFloat((upperCorrect - lowerCorrect).toFixed(2)),
+    });
   }
 
   // 2. Phân tích Phần II
   for (let q = 1; q <= p2Count; q++) {
     let fullCorrect = 0;
     let totalItems = 0;
-    submissions.forEach(sub => {
+    submittedSubs.forEach(sub => {
       const cCount = sub.score_details?.part_2?.[q]?.correct_count || 0;
       totalItems += cCount;
       if (cCount === 4) fullCorrect++;
@@ -53,12 +67,19 @@ export const ItemAnalysisTable: React.FC<ItemAnalysisTableProps> = ({ exam, subm
   // 3. Phân tích Phần III
   for (let q = 1; q <= p3Count; q++) {
     let correct = 0;
-    submissions.forEach(sub => {
+    submittedSubs.forEach(sub => {
       if (sub.score_details?.part_3?.[q]?.is_correct) {
         correct++;
       }
     });
-    p3Stats.push({ q, correct, rate: Math.round((correct / totalSubs) * 100) });
+    const upperCorrect = upperGroup.filter(s => s.score_details?.part_3?.[q]?.is_correct).length / groupSize;
+    const lowerCorrect = lowerGroup.filter(s => s.score_details?.part_3?.[q]?.is_correct).length / groupSize;
+    p3Stats.push({
+      q,
+      correct,
+      rate: Math.round((correct / totalSubs) * 100),
+      di: parseFloat((upperCorrect - lowerCorrect).toFixed(2)),
+    });
   }
 
   // Tìm các câu có tỷ lệ sai cao nhất (P_i < 30%)

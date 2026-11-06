@@ -2,6 +2,22 @@
  * Trình xuất Bảng điểm sang định dạng Excel (.xls có định dạng và tự động co giãn cột)
  */
 
+/**
+ * Làm sạch chuỗi trước khi nội suy vào bảng HTML xuất ra Excel (.xls):
+ * 1. Ngăn chặn CSV / Excel Formula Injection (DDE / =cmd|... / =HYPERLINK(...)) khi bắt đầu bằng =, +, -, @, tab, CR.
+ * 2. Escape toàn bộ ký tự đặc biệt HTML để chống Stored XSS khi mở file .xls.
+ */
+export function escapeExcelHtml(val: unknown): string {
+  const raw = String(val ?? '');
+  const formulaSafe = /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
+  return formulaSafe
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export function exportGradebookToExcel(
   examTitle: string,
   submissions: any[],
@@ -47,27 +63,36 @@ export function exportGradebookToExcel(
       });
     }
 
-    const formatSubmittedTime = sub.submitted_at 
-      ? new Date(sub.submitted_at).toLocaleString('vi-VN') 
+    const formatSubmittedTime = sub.submitted_at
+      ? escapeExcelHtml(new Date(sub.submitted_at).toLocaleString('vi-VN'))
       : 'Chưa nộp';
+    const safeName = escapeExcelHtml(sub.student_name || '');
+    const safeClass = escapeExcelHtml(sub.class_name || '');
+    const safeSchool = escapeExcelHtml(sub.school || 'THPT');
+    const safeScore = sub.score !== null && sub.score !== undefined ? Number(sub.score) : '--';
+    const safeCheatCount = Number(sub.cheat_count || 0);
+    const safeAwaySecs = Number(sub.total_away_seconds || 0);
 
     rowsHtml += `
       <tr>
         <td style="text-align: center; border: 1px solid #ddd; padding: 6px;">${idx + 1}</td>
-        <td style="border: 1px solid #ddd; padding: 6px; font-weight: bold; mso-number-format:'\@';">${sub.student_name || ''}</td>
-        <td style="text-align: center; border: 1px solid #ddd; padding: 6px; mso-number-format:'\@';">${sub.class_name || ''}</td>
-        <td style="border: 1px solid #ddd; padding: 6px; mso-number-format:'\@';">${sub.school || 'THPT'}</td>
+        <td style="border: 1px solid #ddd; padding: 6px; font-weight: bold; mso-number-format:'\\@';">${safeName}</td>
+        <td style="text-align: center; border: 1px solid #ddd; padding: 6px; mso-number-format:'\\@';">${safeClass}</td>
+        <td style="border: 1px solid #ddd; padding: 6px; mso-number-format:'\\@';">${safeSchool}</td>
         <td style="text-align: right; border: 1px solid #ddd; padding: 6px;">${p1Score.toFixed(2)}</td>
         <td style="text-align: right; border: 1px solid #ddd; padding: 6px;">${p2Score.toFixed(2)}</td>
         <td style="text-align: right; border: 1px solid #ddd; padding: 6px;">${p3Score.toFixed(2)}</td>
-        <td style="text-align: right; border: 1px solid #ddd; padding: 6px; font-weight: bold; color: #15803d; font-size: 11pt;">${sub.score !== null ? sub.score : '--'}</td>
-        <td style="text-align: center; border: 1px solid #ddd; padding: 6px; color: ${sub.cheat_count > 0 ? '#b91c1c' : '#374151'};">${sub.cheat_count || 0}</td>
-        <td style="text-align: center; border: 1px solid #ddd; padding: 6px;">${sub.total_away_seconds || 0}s</td>
+        <td style="text-align: right; border: 1px solid #ddd; padding: 6px; font-weight: bold; color: #15803d; font-size: 11pt;">${safeScore}</td>
+        <td style="text-align: center; border: 1px solid #ddd; padding: 6px; color: ${safeCheatCount > 0 ? '#b91c1c' : '#374151'};">${safeCheatCount}</td>
+        <td style="text-align: center; border: 1px solid #ddd; padding: 6px;">${safeAwaySecs}s</td>
         <td style="text-align: center; border: 1px solid #ddd; padding: 6px;">${sub.status === 'submitted' ? 'Đã nộp bài' : 'Đang làm'}</td>
-        <td style="text-align: center; border: 1px solid #ddd; padding: 6px; mso-number-format:'\@';">${formatSubmittedTime}</td>
+        <td style="text-align: center; border: 1px solid #ddd; padding: 6px; mso-number-format:'\\@';">${formatSubmittedTime}</td>
       </tr>
     `;
   });
+
+  const safeExamTitle = escapeExcelHtml((examTitle || 'Kỳ thi').toUpperCase());
+  const safeScope = className && className !== 'all' ? `Lớp ${escapeExcelHtml(className)}` : 'Toàn bộ các lớp';
 
   // Tạo định dạng bảng tính Excel HTML (Microsoft Excel tương thích 100%, tự căn chỉnh độ rộng cột và phông chữ tiếng Việt chuẩn)
   const excelHtml = `
@@ -98,12 +123,12 @@ export function exportGradebookToExcel(
       <table>
         <tr>
           <td colspan="12" style="font-size: 16pt; font-weight: bold; color: #15803d; text-align: center; padding: 15px; border: none;">
-            BẢNG TỔNG HỢP ĐIỂM THI: ${examTitle.toUpperCase()}
+            BẢNG TỔNG HỢP ĐIỂM THI: ${safeExamTitle}
           </td>
         </tr>
         <tr>
           <td colspan="12" style="font-size: 11pt; color: #4b5563; text-align: center; padding: 5px; border: none;">
-            Phạm vi: ${className && className !== 'all' ? `Lớp ${className}` : 'Toàn bộ các lớp'} | Ngày xuất: ${new Date().toLocaleString('vi-VN')}
+            Phạm vi: ${safeScope} | Ngày xuất: ${escapeExcelHtml(new Date().toLocaleString('vi-VN'))}
           </td>
         </tr>
         <tr><td colspan="12" style="border: none; height: 10px;"></td></tr>
@@ -119,7 +144,7 @@ export function exportGradebookToExcel(
   const blob = new Blob([excelHtml], { type: 'application/vnd.ms-excel;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
-  const sanitizedTitle = examTitle.replace(/[^a-zA-Z0-9À-ỹ]/g, '_');
+  const sanitizedTitle = (examTitle || 'KyThi').replace(/[^a-zA-Z0-9À-ỹ]/g, '_');
   link.setAttribute('href', url);
   link.setAttribute('download', `BangDiem_${sanitizedTitle}.xls`);
   document.body.appendChild(link);

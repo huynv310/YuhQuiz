@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   BookOpen, Users, Clock, Award, Trophy, TrendingUp, 
   Calendar, CheckCircle2, ArrowRight, Plus, RefreshCw, LogOut, 
@@ -48,7 +48,44 @@ export const ExamList: React.FC<StudentPortalProps> = ({
   const [isJoinClassOpen, setIsJoinClassOpen] = useState(false);
   const [selectedLeaderboardExam, setSelectedLeaderboardExam] = useState<Exam | null>(null);
   const [exportErrors, setExportErrors] = useState<Record<string, string>>({});
-  const { rank } = useMyRank(currentUser?.id);
+  const { rank } = useMyRank(currentUser?.id, 'student');
+
+  // Quản lý thu gọn thanh thông tin trên điện thoại khi cuộn xuống, chỉ mở rộng lại khi cuộn hoàn toàn về đầu trang
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isMobileHeroCollapsed, setIsMobileHeroCollapsed] = useState(false);
+
+  useEffect(() => {
+    const rootEl = containerRef.current;
+    const scrollTarget: HTMLElement | Window = rootEl?.closest('main') || window;
+    let rafId = 0;
+
+    const getScrollTop = () => {
+      if (scrollTarget === window) {
+        return window.scrollY || document.documentElement.scrollTop || 0;
+      }
+      return (scrollTarget as HTMLElement).scrollTop || 0;
+    };
+
+    const handleScroll = () => {
+      if (rafId) return;
+      rafId = window.requestAnimationFrame(() => {
+        rafId = 0;
+        const y = getScrollTop();
+        setIsMobileHeroCollapsed(prev => {
+          // Chỉ khi cuộn hoàn toàn về đầu trang (y <= 6px) mới mở rộng chi tiết trở lại
+          if (prev) return y > 6;
+          // Khi lướt xuống quá 24px thì thu gọn thành 1 thanh bar
+          return y > 24;
+        });
+      });
+    };
+
+    scrollTarget.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      scrollTarget.removeEventListener('scroll', handleScroll);
+      if (rafId) window.cancelAnimationFrame(rafId);
+    };
+  }, []);
 
   const loadStudentData = async () => {
     if (!currentUser?.id) return;
@@ -127,17 +164,12 @@ export const ExamList: React.FC<StudentPortalProps> = ({
 
       setExams(Array.from(examMap.values()));
 
-      // 3. TẢI LỊCH SỬ THI (ĐỒNG BỘ CẢ THEO ID VÀ TÊN THÍ SINH ĐỂ KHÔNG BỊ RỖNG)
-      let subsQuery = supabase.from('submissions').select('*');
-      const studentFullName = currentUser?.full_name || currentUser?.user_metadata?.full_name || '';
-      
-      if (currentUser?.id && studentFullName) {
-        subsQuery = subsQuery.or(`student_id.eq.${currentUser.id},student_name.eq."${studentFullName}"`);
-      } else if (currentUser?.id) {
-        subsQuery = subsQuery.eq('student_id', currentUser.id);
-      }
-      
-      const { data: subs } = await subsQuery.order('submitted_at', { ascending: false });
+      // 3. TẢI LỊCH SỬ THI (CHỈ LỌC THEO student_id = currentUser.id ĐỂ CHỐNG FILTER INJECTION & TRÙNG TÊN)
+      const { data: subs } = await supabase
+        .from('submissions')
+        .select('*')
+        .eq('student_id', currentUser.id)
+        .order('submitted_at', { ascending: false });
 
       if (subs) {
         setSubmissions(subs);
@@ -199,33 +231,77 @@ export const ExamList: React.FC<StudentPortalProps> = ({
     ? (completedSubs.reduce((a, b) => a + (b.score || 0), 0) / completedSubs.length).toFixed(1)
     : '--';
 
-  return (
-    <div className="flex-1 bg-transparent text-slate-900 font-sans antialiased pb-12 flex flex-col min-h-screen">
+  const displayFullName = profile?.full_name || currentUser?.full_name || currentUser?.email?.split('@')[0] || 'Học sinh';
+  const displayInitial = displayFullName.trim().charAt(0).toUpperCase() || 'H';
 
-      {/* 2. PROFILE HERO BANNER & THỐNG KÊ RIÊNG THEO LỚP */}
-      <div className="glass-panel border-b border-gray-100 py-4 sm:py-6 px-4 md:px-8 sticky top-0 z-20">
+  return (
+    <div ref={containerRef} className="flex-1 bg-transparent text-slate-900 font-sans antialiased pb-12 flex flex-col min-h-screen">
+
+      {/* 2A. THANH BAR THU GỌN TRÊN ĐIỆN THOẠI KHI LƯỚT XUỐNG (FIXED DƯỚI MOBILE HEADER) */}
+      <div
+        aria-hidden={!isMobileHeroCollapsed}
+        className={`md:hidden fixed top-14 left-0 right-0 z-30 glass-panel !rounded-none border-b border-slate-200/80 px-3 py-2 shadow-md transition-all duration-200 ease-out ${
+          isMobileHeroCollapsed
+            ? 'opacity-100 translate-y-0 pointer-events-auto'
+            : 'opacity-0 -translate-y-2 pointer-events-none'
+        }`}
+      >
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center space-x-2 min-w-0">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-blue-600 to-blue-400 text-white font-extrabold text-xs flex items-center justify-center shadow-xs shrink-0">
+              {displayInitial}
+            </div>
+            <span className="font-extrabold text-xs text-slate-900 truncate">
+              {displayFullName}
+            </span>
+          </div>
+
+          <div className="flex items-center space-x-1.5 shrink-0">
+            <span className="text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-lg">
+              TB: <b>{classAvgScore}</b>
+            </span>
+            <span className="text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200 px-2 py-0.5 rounded-lg">
+              {completedSubs.length} đề
+            </span>
+            <button
+              type="button"
+              onClick={() => setIsJoinClassOpen(true)}
+              className="flex items-center space-x-1 bg-blue-50 hover:bg-blue-100 text-primary-dark border border-blue-200 px-2.5 py-1 rounded-lg font-bold text-[11px] transition-all"
+              title="Vào lớp mới"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Lớp</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* 2B. PROFILE HERO BANNER CHI TIẾT (Ở ĐẦU TRANG TRÊN MOBILE & STICKY TRÊN DESKTOP) */}
+      <div className={`glass-panel border-b border-gray-100 py-4 sm:py-6 px-4 md:px-8 md:sticky md:top-0 z-20 transition-opacity duration-200 ${
+        isMobileHeroCollapsed ? 'opacity-0 pointer-events-none md:opacity-100 md:pointer-events-auto' : 'opacity-100'
+      }`}>
         <div className="max-w-6xl mx-auto flex flex-col lg:flex-row lg:items-center justify-between gap-4 sm:gap-6">
           
           {/* User Info */}
           <div className="flex items-center space-x-3 sm:space-x-4 min-w-0">
             <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-blue-400 text-white font-extrabold text-xl sm:text-2xl flex items-center justify-center shadow-md shrink-0">
-              {currentUser?.full_name ? currentUser.full_name.charAt(0).toUpperCase() : 'H'}
+              {displayInitial}
             </div>
-            <div>
-              <div className="flex items-center space-x-2">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                 <h2 className="font-extrabold text-xl sm:text-2xl text-gray-900 leading-tight truncate">
-                  {profile?.full_name || currentUser?.full_name || currentUser?.email?.split('@')[0] || 'Học sinh'}
+                  {displayFullName}
                 </h2>
                 <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-bold border border-emerald-200">
                   Học sinh
                 </span>
-                {rank && <RankBadge tier={rank.rank_tier} size={26} className="!gap-1 text-[11px]" />}
+                {rank && rank.role === 'student' && <RankBadge tier={rank.rank_tier} size={26} className="!gap-1 text-[11px]" />}
               </div>
               <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs sm:text-sm text-gray-500 mt-1">
                 <span>{profile?.school || currentUser?.school || 'Trường THPT'}</span>
                 <span>•</span>
                 <span>Mã: <b className="font-mono text-gray-700">{profile?.user_code || '—'}</b></span>
-                {rank?.position && (
+                {rank?.role === 'student' && rank?.position && (
                   <>
                     <span>•</span>
                     <span>Hạng <b className="text-gray-700">#{rank.position}</b> toàn hệ thống</span>

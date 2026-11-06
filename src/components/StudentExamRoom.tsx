@@ -16,6 +16,7 @@ import { saveRescue, removeRescue, downloadRescue } from '../lib/rescue';
 import { toCachedPdfUrl } from '../lib/pdfUrl';
 import { SolutionView, hasSolution } from './SolutionView';
 import { PdfCanvasViewer } from './PdfCanvasViewer';
+import { sanitizeShortAnswerInput } from '../utils/scoring';
 
 interface StudentExamRoomProps {
   examId: string;
@@ -384,12 +385,13 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
   }, [isSubmitting, isJittering]);
 
-  // TỰ ĐỘNG LƯU NHÁP LÊN SERVER TRƯỚC KHI HẾT GIỜ (Khi còn <= 15s)
+  // TỰ ĐỘNG LƯU NHÁP LÊN SERVER TRƯỚC KHI HẾT GIỜ (Khi còn <= 15s, tản tải bằng jitter 0-3s)
   const preTimeoutDraftSaved = useRef(false);
   useEffect(() => {
     if (isSubmitted || isReview || timeLeft > 15 || timeLeft <= 0 || preTimeoutDraftSaved.current) return;
     preTimeoutDraftSaved.current = true;
-    (async () => {
+    const jitterMs = Math.floor(Math.random() * 3000);
+    const timerId = setTimeout(async () => {
       try {
         await supabase.rpc('save_draft', {
           p_exam_id: examId,
@@ -397,12 +399,11 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
           p_student_name: studentName,
           p_class_name: className,
           p_answers: answers,
-          p_cheat_count: cheatCount,
-          p_total_away_seconds: totalAwaySecs,
         });
       } catch { /* noop */ }
-    })();
-  }, [timeLeft, isSubmitted, isReview, examId, sessionToken, studentName, className, answers, cheatCount, totalAwaySecs]);
+    }, jitterMs);
+    return () => clearTimeout(timerId);
+  }, [timeLeft, isSubmitted, isReview, examId, sessionToken, studentName, className, answers]);
 
   const handlePointerDown = (e: React.PointerEvent) => {
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -446,6 +447,9 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
       if (part === 'part_2' && subKey) {
         nextPart[qIdx] = { ...(nextPart[qIdx] || {}), [subKey]: val };
         nextPartTs[qIdx] = { ...(nextPartTs[qIdx] || {}), [subKey]: elapsedSecs };
+      } else if (part === 'part_3') {
+        nextPart[qIdx] = sanitizeShortAnswerInput(val);
+        nextPartTs[qIdx] = elapsedSecs;
       } else {
         nextPart[qIdx] = val;
         nextPartTs[qIdx] = elapsedSecs;
@@ -940,16 +944,43 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
                   </div>
                 )}
 
-                {/* PHẦN III: Ô NHẬP SỐ */}
+                {/* PHẦN III: Ô NHẬP SỐ (CHUẨN 4 KÝ TỰ THPTQG 2025 + PHÍM NHANH '-' / ',' CHO MOBILE) */}
                 {currentQMeta.part === 'part_3' && (
-                  <div className="flex items-center space-x-1 w-full max-w-[170px]">
+                  <div className="flex items-center space-x-1 w-full max-w-[210px]">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const cur = String(answers?.part_3?.[currentQMeta.subIndex] || '');
+                        const next = cur.startsWith('-') ? cur.slice(1) : `-${cur}`;
+                        updateAnswer('part_3', currentQMeta.subIndex, next);
+                      }}
+                      className="h-8 px-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 font-mono font-extrabold text-xs border border-gray-300 flex-shrink-0 active:scale-95"
+                      title="Đổi dấu âm (-)"
+                    >
+                      ±
+                    </button>
                     <input
                       type="text"
-                      placeholder="Đáp số..."
+                      inputMode="decimal"
+                      maxLength={4}
+                      placeholder="4 ký tự"
                       value={answers?.part_3?.[currentQMeta.subIndex] || ''}
                       onChange={(e) => updateAnswer('part_3', currentQMeta.subIndex, e.target.value)}
-                      className="w-full text-xs px-2.5 py-1.5 bg-gray-50 border border-gray-300 rounded-xl font-mono text-center font-bold focus:bg-white focus:border-primary focus:outline-none"
+                      className="w-full text-xs px-2 py-1.5 bg-gray-50 border border-gray-300 rounded-xl font-mono text-center font-bold tracking-widest focus:bg-white focus:border-primary focus:outline-none"
                     />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const cur = String(answers?.part_3?.[currentQMeta.subIndex] || '');
+                        if (!cur.includes(',') && !cur.includes('.') && cur.length < 4) {
+                          updateAnswer('part_3', currentQMeta.subIndex, `${cur || '0'},`);
+                        }
+                      }}
+                      className="h-8 px-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 font-mono font-extrabold text-xs border border-gray-300 flex-shrink-0 active:scale-95"
+                      title="Thêm dấu phẩy thập phân (,)"
+                    >
+                      ,
+                    </button>
                   </div>
                 )}
               </div>
@@ -1373,19 +1404,28 @@ export const StudentExamRoom: React.FC<StudentExamRoomProps> = ({
                           )}
                         </div>
 
-                        <div className="flex items-center space-x-2 flex-1 max-w-[220px]">
-                          <input
-                            type="text"
-                            disabled={isSubmitted}
-                            placeholder="Điền đáp số..."
-                            value={val}
-                            onChange={(e) => updateAnswer('part_3', qIdx, e.target.value)}
-                            className={`w-full text-xs md:text-sm px-3 py-2 rounded-xl border font-mono text-center transition-all focus:outline-none ${
-                              isSubmitted 
-                                ? (qDetail?.is_correct ? 'border-primary bg-emerald-50 font-bold' : 'border-rose-300 bg-rose-50')
-                                : 'border-gray-200 focus:border-primary bg-white'
-                            }`}
-                          />
+                        <div className="flex items-center space-x-2 flex-1 max-w-[240px]">
+                          <div className="relative flex-1">
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              maxLength={4}
+                              disabled={isSubmitted}
+                              placeholder="Tối đa 4 ký tự"
+                              value={val}
+                              onChange={(e) => updateAnswer('part_3', qIdx, e.target.value)}
+                              className={`w-full text-xs md:text-sm px-3 py-2 rounded-xl border font-mono text-center tracking-widest transition-all focus:outline-none ${
+                                isSubmitted 
+                                  ? (qDetail?.is_correct ? 'border-primary bg-emerald-50 font-bold' : 'border-rose-300 bg-rose-50')
+                                  : 'border-gray-200 focus:border-primary bg-white'
+                              }`}
+                            />
+                            {!isSubmitted && (
+                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-mono text-gray-400 pointer-events-none">
+                                {String(val).length}/4
+                              </span>
+                            )}
+                          </div>
                           {isSubmitted && (
                             <span className="text-xs font-mono font-bold text-gray-600 bg-gray-100 px-2 py-1 rounded-lg whitespace-nowrap">
                               ĐS: {correctKey || '--'}

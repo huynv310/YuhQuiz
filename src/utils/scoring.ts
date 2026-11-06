@@ -5,8 +5,33 @@ export function normalizeShortAnswer(input: string | undefined | null): string {
   return String(input)
     .trim()
     .replace(/\s+/g, '')
-    .replace(',', '.')
+    .replace(/,/g, '.')
     .replace(/^\+/, '');
+}
+
+/**
+ * Chuẩn hóa chuỗi nhập liệu Phần III (Trả lời ngắn) theo đúng quy định phiếu tô 4 ký tự THPTQG 2025:
+ * - Chỉ cho phép chữ số 0-9, dấu trừ (-) ở vị trí đầu tiên, và tối đa 1 dấu phẩy (,) hoặc chấm (.).
+ * - Giới hạn cứng tối đa 4 ký tự (bao gồm cả dấu '-' và ',' / '.').
+ */
+export function sanitizeShortAnswerInput(raw: string | undefined | null): string {
+  if (!raw) return '';
+  const cleaned = String(raw).replace(/\s+/g, '');
+  let out = '';
+  let hasDecimal = false;
+  for (let i = 0; i < cleaned.length; i++) {
+    const ch = cleaned[i];
+    if (ch === '-' && out.length === 0) {
+      out += '-';
+    } else if ((ch === ',' || ch === '.') && !hasDecimal) {
+      hasDecimal = true;
+      out += ch;
+    } else if (ch >= '0' && ch <= '9') {
+      out += ch;
+    }
+    if (out.length >= 4) break;
+  }
+  return out;
 }
 
 export function matchShortAnswer(

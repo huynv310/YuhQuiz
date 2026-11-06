@@ -11,6 +11,19 @@ export interface CompileOptions {
   onProgress?: (step: string, percent: number) => void;
 }
 
+/**
+ * Chuyển chuỗi tiếng Việt có dấu sang chuỗi ASCII (WinAnsi-safe)
+ * để không văng ngoại lệ WinAnsi cannot encode khi dùng StandardFonts.Helvetica của pdf-lib.
+ */
+export function toWinAnsiSafe(input: string): string {
+  return String(input || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .replace(/[^\x20-\x7E]/g, ' ');
+}
+
 /** Chuyển đổi mọi định dạng ảnh (WebP, PNG, JPEG) thành PNG ArrayBuffer qua Canvas */
 async function loadImgAsPngBytes(url: string): Promise<{ bytes: Uint8Array; width: number; height: number }> {
   return new Promise((resolve, reject) => {
@@ -66,11 +79,13 @@ export async function compileExamPdf(options: CompileOptions): Promise<{ pdfBlob
 
   // Header trang đầu tiên
   const drawHeader = () => {
+    const safeSubject = toWinAnsiSafe(subject || 'Toan').toUpperCase();
+    const safeTitle = toWinAnsiSafe(title || 'De ngau nhien').toUpperCase().slice(0, 50);
     currentPage.drawText('SO GIAO DUC VA DAO TAO', { x: MARGIN_X, y: currentY, size: 10, font, color: rgb(0.2, 0.2, 0.2) });
-    currentPage.drawText(`KHOI: ${grade || 12} - MON: ${subject.toUpperCase()}`, { x: MARGIN_X + 260, y: currentY, size: 10, font, color: rgb(0.2, 0.2, 0.2) });
+    currentPage.drawText(`KHOI: ${grade || 12} - MON: ${safeSubject}`, { x: MARGIN_X + 260, y: currentY, size: 10, font, color: rgb(0.2, 0.2, 0.2) });
     currentY -= 16;
 
-    currentPage.drawText(title.toUpperCase().slice(0, 50), { x: MARGIN_X, y: currentY, size: 12, font, color: rgb(0.05, 0.4, 0.25) });
+    currentPage.drawText(safeTitle, { x: MARGIN_X, y: currentY, size: 12, font, color: rgb(0.05, 0.4, 0.25) });
     currentPage.drawText(`Thoi gian: ${durationMinutes} phut`, { x: MARGIN_X + 260, y: currentY, size: 10, font: fontRegular, color: rgb(0.3, 0.3, 0.3) });
     currentY -= 14;
 

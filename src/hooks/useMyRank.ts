@@ -12,7 +12,7 @@ export interface MyRank {
 }
 
 /** Hạng của chính người đang đăng nhập (RPC get_my_rank, không lộ toàn bảng xếp hạng). */
-export function useMyRank(userId: string | undefined | null) {
+export function useMyRank(userId: string | undefined | null, forceRole?: 'student' | 'teacher') {
   const [rank, setRank] = useState<MyRank | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -20,11 +20,26 @@ export function useMyRank(userId: string | undefined | null) {
     if (!userId) { setLoading(false); return; }
     let alive = true;
     setLoading(true);
-    supabase.rpc('get_my_rank').then(({ data }) => {
-      if (alive) { setRank(data as MyRank | null); setLoading(false); }
-    });
+    const args = forceRole ? { p_force_role: forceRole } : {};
+    supabase.rpc('get_my_rank', args).then(
+      ({ data, error }) => {
+        if (!alive) return;
+        if (error && forceRole) {
+          // Fallback nếu DB chưa chạy migration p_force_role
+          supabase.rpc('get_my_rank').then(({ data: d2 }) => {
+            if (alive) {
+              setRank(d2 && (!forceRole || d2.role === forceRole) ? (d2 as MyRank) : null);
+              setLoading(false);
+            }
+          });
+          return;
+        }
+        setRank(data as MyRank | null);
+        setLoading(false);
+      }
+    );
     return () => { alive = false; };
-  }, [userId]);
+  }, [userId, forceRole]);
 
   return { rank, loading };
 }

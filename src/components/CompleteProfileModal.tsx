@@ -64,10 +64,14 @@ export const CompleteProfileModal: React.FC<CompleteProfileModalProps> = ({ user
         updated_at: new Date().toISOString(),
       };
 
-      const { error } = await supabase.from('profiles').upsert(profilePayload);
+      const { data: savedProfile, error } = await supabase
+        .from('profiles')
+        .upsert(profilePayload)
+        .select('*')
+        .single();
       if (error) throw error;
 
-      onSuccess(profilePayload);
+      onSuccess(savedProfile || profilePayload);
     } catch (err: any) {
       setErrorMsg(err.message || 'Lỗi khi lưu thông tin hồ sơ.');
     } finally {

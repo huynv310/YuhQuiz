@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabase';
 import { SUBJECT_PRESETS, MAX_QUESTION_LIMITS, GRADES } from '../constants/subjectPresets';
 import { parseBatchAnswerText } from '../utils/answerParser';
 import { compressPdf } from '../lib/pdfCompress';
+import { sanitizeShortAnswerInput } from '../utils/scoring';
 
 interface CreateExamModalProps {
   currentUser?: any;
@@ -255,6 +256,8 @@ export const CreateExamModal: React.FC<CreateExamModalProps> = ({
       const nextPart: Record<number, any> = { ...(prev[part] || {}) };
       if (part === 'part_2' && subKey) {
         nextPart[qIdx] = { ...(nextPart[qIdx] || {}), [subKey]: val };
+      } else if (part === 'part_3') {
+        nextPart[qIdx] = sanitizeShortAnswerInput(val);
       } else {
         nextPart[qIdx] = val;
       }
@@ -926,10 +929,12 @@ PHẦN III: 1:1,5 2:1.5 3:-1 4:-1 5:-1 6:-1`}
                           <span className="text-[10px] font-bold text-gray-500 block">Câu {q}:</span>
                           <input
                             type="text"
-                            placeholder="Đáp số"
+                            inputMode="decimal"
+                            maxLength={4}
+                            placeholder="≤ 4 ký tự"
                             value={val}
                             onChange={(e) => updateKey('part_3', q, e.target.value)}
-                            className="w-full mt-1 px-2 py-1 bg-white border border-gray-200 rounded-lg text-xs font-mono text-center focus:outline-none focus:border-primary"
+                            className="w-full mt-1 px-2 py-1 bg-white border border-gray-200 rounded-lg text-xs font-mono text-center tracking-widest focus:outline-none focus:border-primary"
                           />
                         </div>
                       );

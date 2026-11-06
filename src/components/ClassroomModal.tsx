@@ -120,11 +120,16 @@ export const ClassroomModal: React.FC<ClassroomModalProps> = ({ currentUser, onC
           (profiles || []).forEach((p: any) => profileMap.set(p.id, p));
         }
 
-        // 3. Lấy tất cả bài nộp của các đề thi thuộc lớp này hoặc có class_name khớp
-        const { data: submissions } = await supabase
-          .from('submissions')
-          .select('student_id, student_name, score, status, exam_id')
-          .eq('status', 'submitted');
+        // 3. Lấy bài nộp đã hoàn thành của đúng các học sinh trong lớp này (chống Unbounded Query)
+        let submissions: any[] = [];
+        if (studentIds.length > 0) {
+          const { data: subsData } = await supabase
+            .from('submissions')
+            .select('student_id, student_name, score, status, exam_id')
+            .eq('status', 'submitted')
+            .in('student_id', studentIds);
+          submissions = subsData || [];
+        }
 
         const classSubmissions = (submissions || []).filter((sub: any) => {
           // Lọc các bài nộp mà học sinh thuộc lớp này hoặc làm trong lớp này

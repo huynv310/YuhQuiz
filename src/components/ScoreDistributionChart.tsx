@@ -8,6 +8,7 @@ interface ScoreDistributionChartProps {
 
 export const ScoreDistributionChart: React.FC<ScoreDistributionChartProps> = ({ submissions }) => {
   const validScores = submissions
+    .filter(s => s.status === 'submitted')
     .map(s => s.score)
     .filter((sc): sc is number => sc !== null && sc !== undefined);
 

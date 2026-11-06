@@ -176,6 +176,46 @@ const emptyRes = calculateExamScore({ part_1: {}, part_2: {}, part_3: {} }, perf
 assert.strictEqual(emptyRes.totalScore, 0.0, 'Bài bỏ trắng phải đạt 0.0 điểm');
 console.log(`✓ Test 4 Passed! (Tổng điểm: ${emptyRes.totalScore})`);
 
+// Test 5: Kiểm thử bộ lọc 4 ký tự Phần III & chống XSS/Formula Injection Excel
+function sanitizeShortAnswerInput(raw) {
+  if (!raw) return '';
+  const cleaned = String(raw).replace(/\s+/g, '');
+  let out = '';
+  let hasDecimal = false;
+  for (let i = 0; i < cleaned.length; i++) {
+    const ch = cleaned[i];
+    if (ch === '-' && out.length === 0) {
+      out += '-';
+    } else if ((ch === ',' || ch === '.') && !hasDecimal) {
+      hasDecimal = true;
+      out += ch;
+    } else if (ch >= '0' && ch <= '9') {
+      out += ch;
+    }
+    if (out.length >= 4) break;
+  }
+  return out;
+}
+
+function escapeExcelHtml(val) {
+  const raw = String(val ?? '');
+  const formulaSafe = /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
+  return formulaSafe
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+console.log('Test 5: Kiểm thử giới hạn 4 ký tự Phần III & Escape XSS/Formula Excel...');
+assert.strictEqual(sanitizeShortAnswerInput('12,345'), '12,3', 'Giới hạn cứng tối đa 4 ký tự');
+assert.strictEqual(sanitizeShortAnswerInput('-0,59'), '-0,5', 'Giữ dấu âm đầu chuỗi và tối đa 4 ký tự');
+assert.strictEqual(sanitizeShortAnswerInput('1--2..3'), '12.3', 'Loại bỏ dấu trừ giữa chuỗi và dấu thập phân lặp');
+assert.strictEqual(escapeExcelHtml('=cmd|\'/C calc\'!A0'), "&#39;=cmd|&#39;/C calc&#39;!A0", 'Chặn Excel Formula Injection');
+assert.strictEqual(escapeExcelHtml('<script>alert(1)</script>'), '&lt;script&gt;alert(1)&lt;/script&gt;', 'Chặn Stored XSS trong Excel HTML');
+console.log('✓ Test 5 Passed!');
+
 console.log('\n======================================================');
-console.log('TẤT CẢ 4 BỘ TEST CASES ĐÃ ĐẠT 100% ĐỘ CHÍNH XÁC!');
+console.log('TẤT CẢ 5 BỘ TEST CASES ĐÃ ĐẠT 100% ĐỘ CHÍNH XÁC!');
 console.log('======================================================');
